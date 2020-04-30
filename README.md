@@ -1,13 +1,15 @@
 malmo
 
-The basic protocol:
-    If you are working on a new feature make a new branch. When that branch is done and bug free merge it into the master. Git will let you know if your changes conflict with someone elses work git will let us know and we can resolve it. When you make a commit please always include a short message of the latest updates/changes to the branch. 
+# The basic protocol:
 
-Making and Merging branches:
-    https://stackabuse.com/git-merge-branch-into-master/
-    Note: if you want to see what branches exist use git branch
+If you are working on a new feature make a new branch. When that branch is done and bug free merge it into the master. Git will let you know if your changes conflict with someone elses work git will let us know and we can resolve it. When you make a commit please always include a short message of the latest updates/changes to the branch. 
 
-How to make a commit:
+## Making and Merging branches:
+https://stackabuse.com/git-merge-branch-into-master/
+
+Note: if you want to see what branches exist use git branch
+
+## How to make a commit:
     0. be sure you are in the correct branch
     1. git add {filename}   
         This will stage just the file you specify      
@@ -21,16 +23,16 @@ How to make a commit:
     3. git push 
         This sends your commit to the remote location. When this complete others can now access the code from the remote in the remote representation of the branch you committed it from.
 
-How to change branches:
+## How to change branches:
     git checkout {branch name}
 
-How to look at the commit history on a branch:
+## How to look at the commit history on a branch:
     git log
 
-How to look at the status of your local branch compared to the remote branch:
+## How to look at the status of your local branch compared to the remote branch:
     git status
 
-How to see the remotes:
+## How to see the remotes:
     git remote -v
     How to add upstream
         git add upstream "{link to repo}"
