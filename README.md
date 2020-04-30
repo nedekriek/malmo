@@ -20,3 +20,17 @@ How to make a commit:
             git commit --amend 
     3. git push 
         This sends your commit to the remote location. When this complete others can now access the code from the remote in the remote representation of the branch you committed it from.
+
+How to change branches:
+    git checkout {branch name}
+
+How to look at the commit history on a branch:
+    git log
+
+How to look at the status of your local branch compared to the remote branch:
+    git status
+
+How to see the remotes:
+    git remote -v
+    How to add upstream
+        git add upstream "{link to repo}"
