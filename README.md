@@ -5,7 +5,10 @@ If you are working on a new feature make a new branch. When that branch is done 
 ## Making and Merging branches:
 https://stackabuse.com/git-merge-branch-into-master/
 
-Note: if you want to see what branches exist use git branch
+I have been deleting branches after I have merged them into master so far. This is just so everyone starts with a clean slate. You do not have to bother with deleting branches at all. Just make sure you are using good naming practices. 
+
+Note: if you want to see what branches exist use git branch 
+
 
 ## What is the difference between git pull and git rebase?
 
