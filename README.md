@@ -7,6 +7,10 @@ https://stackabuse.com/git-merge-branch-into-master/
 
 Note: if you want to see what branches exist use git branch
 
+## What is the difference between git pull and git rebase?
+
+https://stackoverflow.com/questions/36148602/git-pull-vs-git-rebase
+
 ## How to make a commit:
     0. be sure you are in the correct branch
     1. git add {filename}   
@@ -24,11 +28,23 @@ Note: if you want to see what branches exist use git branch
 ## How to change branches:
     git checkout {branch name}
 
+## How to see the different branches in the repo:
+    git branch
+
+## How to get code from a remote repo to your local machine for a specific branch:
+    git pull {branch name}
+
 ## How to look at the commit history on a branch:
     git log
 
-## How to look at the status of your local branch compared to the remote branch:
+## What is git status:
+It displays the state of the working directory and the staging area. It lets you see which changes have been staged, which haven't, and which files aren't being tracked by Git.
+
+## How to look at the status of your local branch:
     git status
+
+## How to look at the status of your local branch compared to the remote branch for a specific branch:
+    git status {upstream} {branch name}
 
 ## How to see the remotes:
     git remote -v
