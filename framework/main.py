@@ -32,6 +32,8 @@ import matplotlib.pyplot as plt
 #TIM:
 import skimage.measure
 
+#Mitchell
+from PIL import Image
 
 it = 0
 
@@ -46,6 +48,7 @@ def rgb2gray(rgb):
 class Agent(object):
     newid = itertools.count()
     def __init__(self):
+        self.count = 0 #Used to keep track of how many inputs it has taken
         self.host = MalmoPython.AgentHost()
         malmoutils.parse_command_line(self.host)
         self.index = next(Agent.newid) # first agent is 0, 2nd is 1...
@@ -70,16 +73,48 @@ class Agent(object):
         return self.host.peekWorldState().is_mission_running
     
     def pixels_to_numpy(self, pixels, normalise=True):
-        """ TIM convert malmo pixels to np array shape [h,w,c], c = rgbd respectively
-        Optionally normaalize values to between 0.0 & 1.0
+        """ TIM convert malmo pixels to np array shape [h,w,c], c = rgbd channel respectively
+        Optionally normalize values to between 0.0 & 1.0
         """
         arr = np.array(pixels,dtype=np.uint8).reshape(240,320,4).astype(np.float32)
         if normalise:
             arr = arr / 255.0
         return arr
+
+    def output_image_RGB(self, sensory_info):
+        """Mitchell: Using this as a debug so we can see what the bot is seeing when RGB sensors are used
+        Output: Saves a PNG for the RGB output and a PNG for the depth output to a folder in the directory
+        """
+        image = np.zeros(sensory_info.shape, dtype=np.uint8)
+        image[:,:,0] = (sensory_info[:,:,0]*255)
+        image[:,:,1] = (sensory_info[:,:,1]*255)
+        image[:,:,2] = (sensory_info[:,:,2]*255)
+        image[:,:,3] = ((1-sensory_info[:,:,3])*255) #Invert disparity into depth (White = close, Black = far)
+        img = Image.fromarray(image[:,:,:3])
+        img.save("image_log/"+str(self.count)+'.png')
+        img = Image.fromarray(image[:,:,3])
+        img.save("image_log/"+str(self.count)+'_d.png')
+        self.count += 1
+
+    def output_image_3bit(self, sensory_info):
+        """Mitchell: Using this as a debug so we can see what the bot is seeing when 3bit output is used
+        Not actually 3 bit, just each RGB channel is a binary value
+        - May need improving when in the scene, some pixels are being classified as red and blue
+            Solution would be to mask the most important channel, and set all in the other channel that are true in the mask to 0
+        Input: sensory_info np array
+        Output: Saves a PNG for the RGB output and a PNG for the depth output to a folder in the directory
+        """
+        image = np.zeros(sensory_info.shape, dtype=np.uint8)
+        image[:,:,:3] = sensory_info[:,:,:3]
+        image[:,:,3] = ((1-sensory_info[:,:,3])*255) #Invert disparity into depth (White = close, Black = far)
+        img = Image.fromarray(image[:,:,:3])
+        img.save("image_log/"+str(self.count)+'.png')
+        img = Image.fromarray(image[:,:,3])
+        img.save("image_log/"+str(self.count)+'_d.png')
+        self.count += 1
        
-    def get_sensory_info(self, arr, s_height=4, s_width=4, s_fn=np.mean, 
-                         flatten=True, grayscale=False):
+    def get_sensory_info(self, arr, s_height=60, s_width=80, s_fn=np.mean, 
+                         flatten=True, grayscale=False, RGB_output=True):
         """ TIM Convert raw numpy array into sensory information to be input 
                 into our agent's algorithm
         NOTE: To work properly: 
@@ -100,6 +135,20 @@ class Agent(object):
         downsample_h = h // s_height
         downsample_w = w // s_width
         sensory_info = skimage.measure.block_reduce(arr, (downsample_h, downsample_w, 1), s_fn)
+
+        #Threshold values to distinguish parts of the scene - Mitchell
+        threshold = 0.3
+        sensory_info[:,:,0] = (sensory_info[:,:,0] > threshold)
+        sensory_info[:,:,1] = (sensory_info[:,:,1] > threshold)
+        sensory_info[:,:,2] = (sensory_info[:,:,2] > threshold)
+
+        #Used for debugging, so we can see what the agent sees in a log
+        if RGB_output:
+            #If we provide RGB instead of the compressed information
+            self.output_image_RGB(sensory_info)
+        elif not RGB_output:
+            self.output_image_3bit(sensory_info)
+            
         if flatten:
             sensory_info = sensory_info.flatten()
         return sensory_info
@@ -209,16 +258,15 @@ class Agent(object):
 agents = [Agent()]
 
 drawing_decorators = ''
-drawing_decorators += cuboid(-5,10,-5,5,25,5, 'sand')
+drawing_decorators += cuboid(-5,10,-5,5,25,5, 'redstone_block')
 drawing_decorators += cuboid(-5,10,-5,-5,25,-5, 'water')
 drawing_decorators += cuboid(-5,10,5,-5,25,5, 'water')
 drawing_decorators += cuboid(5,10,5,5,25,5, 'water')
 drawing_decorators += cuboid(5,10,-5,5,25,-5, 'water')
 subst = {
     'DrawingDecorators' : drawing_decorators,
-    'StartTime' : str(np.random.randint(24000)),
+    'StartTime' : 6000, #Fixed start time (Midday) - Mitchell
 }
-
 
 mission_xml = cs765_utils.load_mission_xml('./desert_island.xml',subst)
 print(mission_xml)
