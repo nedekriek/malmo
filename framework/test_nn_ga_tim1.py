@@ -7,7 +7,7 @@ Created on Sat May  2 14:14:09 2020
 Test GA / NN Code file
 Based on code from: https://github.com/ConorLazarou/GeneticAlgorithms/tree/master/connga
 
-v1. Test one NN, takes sensory input then predicts values for "move" and "turn"
+v1. Added various params as described in comments.
 
 """
 
@@ -176,7 +176,7 @@ class Ecosystem():
             else:
                 parent_2_idx = parent_1_idx
             offspring = self.population[parent_1_idx].mate(self.population[parent_2_idx], 
-                                       self.mutate, self.crossover)
+                                                           self.mutate, self.crossover)
             new_population.append(offspring)
         
             
@@ -197,16 +197,22 @@ class Ecosystem():
             return self.population[np.argsort(rewards)[-1]]
 
 
-def main():
+def main(mutate=True, crossover=True, mutation_std=0.05, crossover_rate=0.5, 
+         activation='relu', output='linear', num_generations=1000):
     """Learn and visualize a function from [0,1] to something else
     TIM: added configurable crossover, mutation and layer activation fn
+    TIM: Added various extra args to main for more flexible running
     """
+    np.random.seed(101)  #TIM Added for reproduceability
     import matplotlib.pyplot as plt
     actual_f = lambda x : np.sin(x*6*np.pi)  # the function to learn, y = sin(x * 6 * pi)
     loss_f = lambda y, y_hat : np.mean(np.abs(y - y_hat)**(2))  # the loss function (negative reward)
     X = np.linspace(0, 1, 200)
 
     def simulate_and_evaluate(organism, replicates=500):
+        """ TIM: creates a large batch of 500 numbers incrementing from 0..1 
+                 and passes them all into NN & returns 500 preds 
+        """
         X = np.linspace(0, 1, replicates).reshape((replicates, 1))
         predictions = organism.predict(X)
         loss = loss_f(actual_f(X), predictions)
@@ -214,12 +220,13 @@ def main():
 
     scoring_function = lambda organism : simulate_and_evaluate(organism, replicates=500)
 
-    original_organism = Organism([1, 16,16,16, 1], output='linear', use_bias=True,
-                                 activation='relu', mutation_std=0.05, crossover_rate=0.5)
+    original_organism = Organism([1, 16,16,16, 1], output=output, use_bias=True,
+                                 activation=activation, mutation_std=mutation_std, 
+                                 crossover_rate=crossover_rate)
     ecosystem = Ecosystem(original_organism, scoring_function, population_size=100, 
-                          mating=True, mutate=True, crossover=True)
+                          mating=True, mutate=mutate, crossover=crossover)
     best_organisms = [ecosystem.get_best_organism()]
-    for i in range(1000):
+    for i in range(num_generations):
         ecosystem.generation()
         this_generation_best = ecosystem.get_best_organism(include_reward=True)
         best_organisms.append(this_generation_best[0])
@@ -243,7 +250,8 @@ def main():
     plt.show()
 
 if __name__ == '__main__':
-    main()
+    main(mutate=True, crossover=True, mutation_std=0.05, crossover_rate=0.05, 
+         activation='tanh', num_generations=1000)
 
 
 
