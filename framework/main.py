@@ -1,10 +1,6 @@
 """ Tim: modified form of Matthews worksheet_4 code
 Dont forget to run the minecraft environment before trying to run this code...
 Run this code from within the directory you have put this code in..
-
-
-
-
 """
 
 from __future__ import print_function
@@ -114,16 +110,18 @@ class Agent(object):
         self.count += 1
        
     def get_sensory_info(self, arr, s_height=60, s_width=80, s_fn=np.mean, 
-                         flatten=True, grayscale=False, RGB_output=True):
+                         flatten=True, grayscale=False, RGB_output=True, threshold = 0.3):
         """ TIM Convert raw numpy array into sensory information to be input 
                 into our agent's algorithm
+        Inputs:
+        - threshold - if set to 0 no threshold is applied, otherwise set to a value between 0-1
+        - RGB_output - True: logs images as RGB, False: logs as 3 binary channels
         NOTE: To work properly: 
             h must be an exact multiple of s_height
             w must be an exact multiple of s_width
             Some valid (s_height, s_width) combinations for h=240,w=320:
                 (240,320) - no reduction performed
                 (1,1), (3,4), (4,4), (5,5), (6,5), (8,8), (16,16) ...
-                
         Returns: (if grayscale = True, c will be 2)
             tensor shape [s_height, s_width, c] if flatten = False  (in the unlikely event we want to try convolutions)
             vector shape [s_height * s_width * c] if flatten = True (suitable for input into fully connected layer)
@@ -137,10 +135,10 @@ class Agent(object):
         sensory_info = skimage.measure.block_reduce(arr, (downsample_h, downsample_w, 1), s_fn)
 
         #Threshold values to distinguish parts of the scene - Mitchell
-        threshold = 0.3
-        sensory_info[:,:,0] = (sensory_info[:,:,0] > threshold)
-        sensory_info[:,:,1] = (sensory_info[:,:,1] > threshold)
-        sensory_info[:,:,2] = (sensory_info[:,:,2] > threshold)
+        if threshold != 0:
+            sensory_info[:,:,0] = (sensory_info[:,:,0] > threshold)
+            sensory_info[:,:,1] = (sensory_info[:,:,1] > threshold)
+            sensory_info[:,:,2] = (sensory_info[:,:,2] > threshold)
 
         #Used for debugging, so we can see what the agent sees in a log
         if RGB_output:
@@ -258,11 +256,22 @@ class Agent(object):
 agents = [Agent()]
 
 drawing_decorators = ''
-drawing_decorators += cuboid(-5,10,-5,5,25,5, 'redstone_block')
-drawing_decorators += cuboid(-5,10,-5,-5,25,-5, 'water')
-drawing_decorators += cuboid(-5,10,5,-5,25,5, 'water')
-drawing_decorators += cuboid(5,10,5,5,25,5, 'water')
-drawing_decorators += cuboid(5,10,-5,5,25,-5, 'water')
+#Ceiling
+drawing_decorators += cuboid(-3,25,-2, 3,25,10, 'emerald_block') #Green - Floor
+drawing_decorators += cuboid(-3,29,-2, 3,29,10, 'emerald_block') #Green - Ceiling
+#Walls
+drawing_decorators += cuboid(3,25,-2, 3,29,10, 'sea_lantern') #Blue - Wall
+drawing_decorators += cuboid(-3,25,-2, -3,29,10, 'sea_lantern') #Blue - Wall
+drawing_decorators += cuboid(-3,25,-2, 3,29,-2, 'sea_lantern') #Blue - Wall
+drawing_decorators += cuboid(-3,25,10, 3,29,10, 'sea_lantern') #Blue - Wall
+#Divider
+drawing_decorators += cuboid(-3,25,3, 3,29,3, 'sea_lantern') #Blue - Wall
+drawing_decorators += cuboid(-1,25,3, -1,28,3, 'air') #Blue - Wall
+drawing_decorators += cuboid(1,25,3, 1,28,3, 'air') #Blue - Wall
+#Threat
+drawing_decorators += cuboid(-1,25,3,1,25,3, 'lava') #Blue - Wall
+
+
 subst = {
     'DrawingDecorators' : drawing_decorators,
     'StartTime' : 6000, #Fixed start time (Midday) - Mitchell
