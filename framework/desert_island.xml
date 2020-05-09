@@ -4,17 +4,16 @@
     <Summary/>
   </About>
   <ModSettings>
-    <MsPerTick>25</MsPerTick>
+    <MsPerTick>1</MsPerTick>
   </ModSettings>
   <ServerSection>
     <ServerInitialConditions>
       <Time>
         <StartTime>{{ StartTime }}</StartTime>
       </Time>
-      <!-- <Weather>rain</Weather> -->
     </ServerInitialConditions>
     <ServerHandlers>
-      <FlatWorldGenerator forceReset="true" generatorString="2;7,5x1,5x3,5x12,10x9;24;" seed=""/>
+      <FlatWorldGenerator forceReset="false" generatorString="2;7,5x1,5x3,5x12,10x9;24;" seed=""/>
       <DrawingDecorator>
       	{{ DrawingDecorators }}
       </DrawingDecorator>      
@@ -23,7 +22,7 @@
   </ServerSection>
     
   <AgentSection mode="Survival">
-    <Name>SunWatcher</Name>
+    <Name>LavaDodger</Name>
     <AgentStart>
       <Placement x="0" y="26.0" z="0.0" pitch="0" yaw="0"/>
     </AgentStart>

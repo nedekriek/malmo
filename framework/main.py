@@ -165,70 +165,50 @@ class Agent(object):
         d = arr[:,:,3]    #.astype(np.float32)/255.0
         return r,g,b,d
 
-    def angle_to_time(self,angle,part_of_day='unspecified'):
-        """ TIM: From Matthew's SunWatcher class 
-        Takes the angle of the celestial object in the sky 
-        (at horizon = 0, at the top of the sky = 90), and estimates 
-        the time of day. 
-
-        Without knowing if the object is the sun or moon, and without
-        knowing if it is rising or setting our estimate can only be so
-        accurate.
-
-        If the part_of_day argument is specified, then
-        the estimate can be more accurate. For this argument a numerical 
-        value is given that specifies the following.
-
-        0: between     0 and  6000 in minecraft time (dawn--midday)
-        1: between  6000 and 12000 in minecraft time (midday--dusk)
-        2: between 12000 and 18000 in minecraft time (dusk--midnight)
-        3: between 18000 and 24000 in minecraft time (midnight--dawn)
-        """
+    def run(self):
+        """run the agent on the world"""
+        total_reward = []
+        current_reward = 0
         
-        estimate = 6000.0*(-self.pitch / 90.0)
-        if part_of_day == 'unspecified' :
-            print('Time (%f) is estimated to be one of the following:' %(self.correct_time))
-            print('\t %f' %(estimate))
-            print('\t %f' %(12000-estimate))
-            print('\t %f' %(12000+estimate))
-            print('\t %f' %(12000+(12000-estimate)))
-        else :
-            print('Time (%f) is estimated to be:' %(self.correct_time))
-            print('\t %f %s' %(estimate,'<---' if part_of_day==0 else ''))
-            print('\t %f %s' %(12000-estimate,'<---' if part_of_day==1 else ''))
-            print('\t %f %s' %(12000+estimate,'<---' if part_of_day==2 else ''))
-            print('\t %f %s' %(12000+(12000-estimate),'<---' if part_of_day==3 else ''))
+        # wait for a valid observation
+        world_state = self.host.peekWorldState()
+        while world_state.is_mission_running and all(e.text=='{}' for e in world_state.observations):
+            world_state = self.host.peekWorldState()
+        # wait for a frame to arrive after that
+        num_frames_seen = world_state.number_of_video_frames_since_last_state
+        while world_state.is_mission_running and world_state.number_of_video_frames_since_last_state == num_frames_seen:
+            world_state = self.host.peekWorldState()
+        world_state = self.host.getWorldState()
+        for err in world_state.errors:
+            print(err)
 
+        if not world_state.is_mission_running:
+            return 0 # mission already ended
+
+        assert len(world_state.video_frames) > 0, 'No video frames!?'
+
+
+        #Here is the actual agent running
+        start_time = time.time()
+
+        #first action
+        total_reward += [self.act(current_reward)]
+        
+        while world_state.is_mission_running:
+            world_state = self.host.peekWorldState()
+            time.sleep(0.1)
+            current_reward = sum(r.getValue() for r in world_state.rewards)
+            total_reward += [self.act(current_reward)]
+            
+        fitness = time.time() - start_time
+        return total_reward
 
     
-    def act(self):
-        if self.index==0:
-            global it
-            it += 1
-            
-        ## when you override this method in a subclass, make sure to
-        ## call the parent's class as I did below with `super().act()`
-        ## so that queued commands are sent.
-        for command in self.queued_commands:
-            self.host.sendCommand(command)
-        self.queued_commands.clear()
+    def act(self,current_reward):
+        actions = ['turn', "strafe", "move"]
 
         world_state = self.host.getWorldState()
-        
-        #Tim commented out Matthew code relating to time of day
-        ## gets current positional data and stores it in yaw and pitch
-        #if len(world_state.observations) > 0 :
-        #    obvsText = world_state.observations[-1].text
-        #    data = json.loads(obvsText) 
-        #    self.yaw = data.get(u'Yaw', 0)
-        #    self.yaw += 360.0*2
-        #    self.yaw = self.yaw % 360.0
-            # force yaw to lie between 0 and 360.
-        #    self.pitch = data.get(u'Pitch', 0)
-        #    self.correct_time = data.get(u'WorldTime',0)
-        #    self.correct_time = self.correct_time % 24000.0
-            # force correct time to lie between 0 and 24000.
-            
+
         if len(world_state.video_frames) >= 1:
             pixels = world_state.video_frames[-1].pixels
             #red,green,blue,depth = self.pixels_as_arrays(pixels)
@@ -236,168 +216,72 @@ class Agent(object):
             arr = self.pixels_to_numpy(pixels)
             sensory_info = self.get_sensory_info(arr)
 
-
+            
             ## NOTE: Most of your code will go here.
 
-            # action = our_algorithm(sensory_info)
+            #action = our_algorithm(sensory_info)
             #self.queued_commands.append(action)
 
-            self.queued_commands.append('move 1')
-            self.queued_commands.append('turn 1')
-
-        
+            self.host.sendCommand(random.choice(actions) + " " + str(random.random()*2-1))
             
-########################################
-#### INITIALISE One AGENT
-## the order here corresponds to the order of the AgentSections
-#agents = [SunWatcher()]  #TIM: Matthew code. His comments said initialising 2 agents 
-                          # but when I added a second one I got an error 
-                          # which might relate to the environment itself not being set up for >1 agent?
-agents = [Agent()]
-
-drawing_decorators = ''
-#Ceiling
-drawing_decorators += cuboid(-3,25,-2, 3,25,10, 'emerald_block') #Green - Floor
-drawing_decorators += cuboid(-3,29,-2, 3,29,10, 'emerald_block') #Green - Ceiling
-#Walls
-drawing_decorators += cuboid(3,25,-2, 3,29,10, 'sea_lantern') #Blue - Wall
-drawing_decorators += cuboid(-3,25,-2, -3,29,10, 'sea_lantern') #Blue - Wall
-drawing_decorators += cuboid(-3,25,-2, 3,29,-2, 'sea_lantern') #Blue - Wall
-drawing_decorators += cuboid(-3,25,10, 3,29,10, 'sea_lantern') #Blue - Wall
-#Divider
-drawing_decorators += cuboid(-3,25,3, 3,29,3, 'sea_lantern') #Blue - Wall
-drawing_decorators += cuboid(-1,25,3, -1,28,3, 'air') #Blue - Wall
-drawing_decorators += cuboid(1,25,3, 1,28,3, 'air') #Blue - Wall
-#Threat
-drawing_decorators += cuboid(-1,25,3,1,25,3, 'lava') #Blue - Wall
+        return 0
 
 
-subst = {
-    'DrawingDecorators' : drawing_decorators,
-    'StartTime' : 6000, #Fixed start time (Midday) - Mitchell
-}
 
-mission_xml = cs765_utils.load_mission_xml('./desert_island.xml',subst)
-print(mission_xml)
-my_mission = MalmoPython.MissionSpec(mission_xml, True)
+def main():
+    agent = Agent() #Single agent
+    num_iterations = 10
 
-client_pool = MalmoPython.ClientPool()
-for agent in agents:
+    #Decorators drawn between lives
+    drawing_decorators = ''
+    drawing_decorators += cuboid(-3,25,-2, 3,29,10, 'air') #Clear area
+    #Ceiling
+    drawing_decorators += cuboid(-3,25,-2, 3,25,10, 'emerald_block') #Green - Floor
+    drawing_decorators += cuboid(-3,29,-2, 3,29,10, 'emerald_block') #Green - Ceiling
+    #Walls
+    drawing_decorators += cuboid(3,25,-2, 3,29,10, 'sea_lantern') #Blue - Wall
+    drawing_decorators += cuboid(-3,25,-2, -3,29,10, 'sea_lantern') #Blue - Wall
+    drawing_decorators += cuboid(-3,25,-2, 3,29,-2, 'sea_lantern') #Blue - Wall
+    drawing_decorators += cuboid(-3,25,10, 3,29,10, 'sea_lantern') #Blue - Wall
+    #Divider
+    drawing_decorators += cuboid(-3,25,3, 3,29,3, 'sea_lantern') #Blue - Wall
+    drawing_decorators += cuboid(-1,25,3, -1,28,3, 'air') #Blue - Wall
+    drawing_decorators += cuboid(1,25,3, 1,28,3, 'air') #Blue - Wall
+    #Threat
+    drawing_decorators += cuboid(-1,25,3,1,25,3, 'lava') #Blue - Wall
+
+
+    subset = {
+        'DrawingDecorators' : drawing_decorators,
+        'StartTime' : 6000, #Fixed start time (Midday) - Mitchell
+    }
+
+    mission_xml = cs765_utils.load_mission_xml('./desert_island.xml',subset)
+    my_mission = MalmoPython.MissionSpec(mission_xml, True)
+
+    client_pool = MalmoPython.ClientPool()
     agent.connect(client_pool)
 
-for agent in agents:
-    agent.safeStartMission(my_mission, client_pool)
+    #Using code from tabular_q_learning
+    rewards = []
+    for i in range(num_iterations):
+        print("\n Map - Mission %d of %d:" % (i+1, num_iterations ))
+        agent.safeStartMission( my_mission, client_pool)    
 
-cs765_utils.safeWaitForStart([agent.host for agent in agents])# agent_a.host, agent_b.host ])
+        print("Waiting for the mission to start", end=' ')
+        cs765_utils.safeWaitForStart([agent.host])
 
-# TIM Add counter to stop agents running
-counter = 100
+        # -- run the agent in the world -- #
+        reward = agent.run()
 
-## Main loop
-while any([agent.is_mission_running() for agent in agents]):
-    time.sleep(0.1)
-    for agent in agents:
-        agent.act()
-    counter -= 1   # TIM added
-    if counter == 0:
-        print('Counter ran out, breaking..')
-        break
+        total_reward = 0
+        for r in reward:
+            total_reward +=r
+        print('Cumulative reward: %d' % total_reward)
+        rewards += [total_reward]
 
-agents[0].host.sendCommand('turn 0')
-#agents[0].host.sendCommand('move 1')
-
-#TIM Added for testing sensory info extractor..:
-world_state = agents[0].host.getWorldState()
-world_state.is_mission_running   #True
-print(len(world_state.video_frames))   #1
-pixels = world_state.video_frames[-1].pixels
-arr = np.array(pixels,dtype=np.uint8).reshape(240,320,4)
-print(arr.shape)   #(240, 320, 4)
-tst = agents[0].get_sensory_info(arr)
-print(tst.shape)  # (64,)
-tst = agents[0].get_sensory_info(arr,flatten=True)
-print(tst.shape)
-tst = agents[0].get_sensory_info(arr,flatten=False)
-print(tst.shape)
-tst = agents[0].get_sensory_info(arr,grayscale=True)
-print(tst.shape)
-tst = agents[0].get_sensory_info(arr,flatten=False, grayscale=True)
-print(tst.shape)
-tst = agents[0].get_sensory_info(arr, s_height=240, s_width=320)
-print(tst.shape)  #(307200,)
-tst = agents[0].get_sensory_info(arr, s_height=240, s_width=320, grayscale=True)
-print(tst.shape)  #153600
+        # -- clean up -- #
+        time.sleep(0.5) # (let the Mod reset)
 
 
-
-'''
-# Tim: Matthew's Sunwatcher code in case we need it:
-
-sv = SensoryVisualization()
-class SunWatcher(Agent):
-    def __init__(self):
-        super().__init__()
-        self.yaw = 0.0   # your current facing (yaw)
-        self.pitch = 0.0 # your current facing (pitch)
-
-        ## NOTE: You may want to add some code here.
-
-    def angle_to_time(self,angle,part_of_day='unspecified'):
-        """ Takes the angle of the celestial object in the sky 
-        (at horizon = 0, at the top of the sky = 90), and estimates 
-        the time of day. 
-
-        Without knowing if the object is the sun or moon, and without
-        knowing if it is rising or setting our estimate can only be so
-        accurate.
-
-        If the part_of_day argument is specified, then
-        the estimate can be more accurate. For this argument a numerical 
-        value is given that specifies the following.
-
-        0: between     0 and  6000 in minecraft time (dawn--midday)
-        1: between  6000 and 12000 in minecraft time (midday--dusk)
-        2: between 12000 and 18000 in minecraft time (dusk--midnight)
-        3: between 18000 and 24000 in minecraft time (midnight--dawn)
-        """
-        
-        estimate = 6000.0*(-self.pitch / 90.0)
-        if part_of_day == 'unspecified' :
-            print('Time (%f) is estimated to be one of the following:' %(self.correct_time))
-            print('\t %f' %(estimate))
-            print('\t %f' %(12000-estimate))
-            print('\t %f' %(12000+estimate))
-            print('\t %f' %(12000+(12000-estimate)))
-        else :
-            print('Time (%f) is estimated to be:' %(self.correct_time))
-            print('\t %f %s' %(estimate,'<---' if part_of_day==0 else ''))
-            print('\t %f %s' %(12000-estimate,'<---' if part_of_day==1 else ''))
-            print('\t %f %s' %(12000+estimate,'<---' if part_of_day==2 else ''))
-            print('\t %f %s' %(12000+(12000-estimate),'<---' if part_of_day==3 else ''))
-
-        
-    def act(self):
-        super().act()
-        world_state = self.host.getWorldState()
-        
-        ## gets current positional data and stores it in yaw and pitch
-        if len(world_state.observations) > 0 :
-            obvsText = world_state.observations[-1].text
-            data = json.loads(obvsText) 
-            self.yaw = data.get(u'Yaw', 0)
-            self.yaw += 360.0*2
-            self.yaw = self.yaw % 360.0
-            # force yaw to lie between 0 and 360.
-            self.pitch = data.get(u'Pitch', 0)
-            self.correct_time = data.get(u'WorldTime',0)
-            self.correct_time = self.correct_time % 24000.0
-            # force correct time to lie between 0 and 24000.
-            
-        if len(world_state.video_frames) >= 1:
-            pixels = world_state.video_frames[-1].pixels
-            red,green,blue,depth = self.pixels_as_arrays(pixels)
-            #sv.display_data(blue)
-
-            ## NOTE: Most of your code will go here.
-'''
-
+main()
