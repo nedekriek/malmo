@@ -8,6 +8,7 @@ Test GA / NN Code file
 Based on code from: https://github.com/ConorLazarou/GeneticAlgorithms/tree/master/connga
 
 v1. Added various params as described in comments.
+v2. TIM Added comments to ecosystem.generation fn to clarify what is going on.
 
 """
 
@@ -107,7 +108,7 @@ class Organism():
             if self.use_bias:
                 self.biases[i] += np.random.normal(0, self.mutation_std, self.biases[i].shape)
 
-    def mate(self, other, mutate=True, crossover=True):
+    def mate(self, other, mutate=True, crossover=True, crossover_method='single_neuron'):
         """Mate two organisms together, create an offspring, mutate it, and return it.
         TIM: Added ability to turn off crossover as well as configurable crossover rate
         """
@@ -118,7 +119,7 @@ class Organism():
         if not all(self.layers[x].shape == other.layers[x].shape for x in range(len(self.layers))):
             raise ValueError('Both parents must have same shape')
 
-        crossover_method = 'single_neuron'
+        
         child = copy.deepcopy(self)
         if crossover:
             if crossover_method == 'weights_in':    # Same as original code
@@ -151,7 +152,7 @@ class Organism():
 
     def organism_like(self):
         """Return a new organism with the same shape and activations but reinitialized weights.
-        TIM: Added corossover_rate + layer activation fn"""
+        TIM: Added crossover_rate + layer activation fn"""
         dimensions = [x.shape[0] for x in self.layers] + [self.layers[-1].shape[1]]
         return Organism(dimensions, use_bias=self.use_bias, output=self.output, activation=self.layer_activation,
                         mutation_std=self.mutation_std, crossover_rate=self.crossover_rate)
@@ -159,8 +160,9 @@ class Organism():
 
 class Ecosystem():
     def __init__(self, holotype, scoring_function, population_size=100, holdout='sqrt', new_blood=0.1, 
-                 mating=True, mutate=True, crossover=True):
+                 mating=True, mutate=True, crossover=True, crossover_method='single_neuron'):
         """ TIM: Added mutate and crossover params so can turn each on/over with rate decided in Organism class
+            TIM: Parameterised crossover_method
         """
         self.population_size = population_size
         self.population = [holotype.organism_like() for _ in range(population_size)]
@@ -177,35 +179,42 @@ class Ecosystem():
         self.mating = mating
         self.mutate = mutate
         self.crossover = crossover 
+        self.crossover_method = crossover_method
 
 
     def generation(self, verbose=False):
-        """Run a single generation, evaluating, mating, and mutating organisms, returning the best one."""
+        """Run a single generation, evaluating, mating, and mutating organisms, returning the best one.
+        TIM: Assuming population_size=100, holdout=10, new_blood=10, resulting population will be:
+            90 mutated/crossover children of mostly fittest 10 parents  ("holdout" parents) 
+            plus 9 new random individuals   (i.e new blood)
+            plus the fittest individual from last time
+        """
         rewards = []
         for index, organism in enumerate(self.population):
             if verbose:
                 print(f'{index+1}/{self.population_size}', end='\r')
             reward = self.scoring_function(organism)
             rewards.append(reward)
-        self.population = [self.population[x] for x in np.argsort(rewards)[::-1]]
+        self.population = [self.population[x] for x in np.argsort(rewards)[::-1]]  #TIM: Sort population by fitness score descending
         best_organism = self.population[0]
         best_score = max(rewards)
         new_population = []
         for i in range(self.population_size):
-            parent_1_idx = i % self.holdout
-            if self.mating:
+            parent_1_idx = i % self.holdout    #TIM for self.holdout = 10, parent_1_idx cycles between 0..9 i.e top 10 fittest organisms
+            if self.mating:                    #TIM parent_2_idx = min(99, a random number between 0 and inf but weighted towards 0..10). Ie tend to mate with another fit individual
                 parent_2_idx = min(self.population_size - 1, int(np.random.exponential(self.holdout)))
             else:
                 parent_2_idx = parent_1_idx
             offspring = self.population[parent_1_idx].mate(self.population[parent_2_idx], 
-                                                           self.mutate, self.crossover)
-            new_population.append(offspring)
+                                                           self.mutate, self.crossover,
+                                                           self.crossover_method)
+            new_population.append(offspring)  #TIM: create new pop of 100 mutated children if crossover enabled, or 100 mutated individuals otherwise
         
             
-        for i in range(1, self.new_blood+1):
-            new_population[-i] = self.population[0].organism_like()
-        new_population[-1] = self.population[0]
-        self.population = new_population
+        for i in range(1, self.new_blood+1):  #TIM: self.new_blood = 10
+            new_population[-i] = self.population[0].organism_like()  #TIM: Replace 10 mutated individuals with completely random individuals
+        new_population[-1] = self.population[0]                      #TIM: Then replace one of those 10 with a direct copy of the fittest individual 
+        self.population = new_population  #TIM: so our population now = 90 mutated/crossover children of mostly fittest parents plus 9 new random individuals plus the fittest individual from last time
         return best_organism, best_score
 
 
@@ -219,7 +228,7 @@ class Ecosystem():
             return self.population[np.argsort(rewards)[-1]]
 
 
-def main(mutate=True, crossover=True, mutation_std=0.05, crossover_rate=0.5, 
+def main(mutate=True, crossover=True, mutation_std=0.05, crossover_rate=0.5, crossover_method='single_neuron',
          activation='relu', output='linear', num_generations=1000):
     """Learn and visualize a function from [0,1] to something else
     TIM: added configurable crossover, mutation and layer activation fn
@@ -246,7 +255,8 @@ def main(mutate=True, crossover=True, mutation_std=0.05, crossover_rate=0.5,
                                  activation=activation, mutation_std=mutation_std, 
                                  crossover_rate=crossover_rate)
     ecosystem = Ecosystem(original_organism, scoring_function, population_size=100, 
-                          mating=True, mutate=mutate, crossover=crossover)
+                          mating=True, mutate=mutate, crossover=crossover,
+                          crossover_method=crossover_method)
     best_organisms = [ecosystem.get_best_organism()]
     for i in range(num_generations):
         ecosystem.generation()
@@ -272,5 +282,6 @@ def main(mutate=True, crossover=True, mutation_std=0.05, crossover_rate=0.5,
     plt.show()
 
 if __name__ == '__main__':
-    main(mutate=True, crossover=True, mutation_std=0.025, crossover_rate=0.5,
+    main(mutate=True, crossover=True, mutation_std=0.025, crossover_rate=0.5, crossover_method='single_neuron',
          activation='tanh', num_generations=1000)
+
