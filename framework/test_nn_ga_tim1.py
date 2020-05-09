@@ -14,6 +14,7 @@ v1. Added various params as described in comments.
 import copy
 
 import numpy as np
+import random
 
 class Organism():
     def __init__(self, dimensions, use_bias=True, output='softmax', activation='relu', 
@@ -117,12 +118,33 @@ class Organism():
         if not all(self.layers[x].shape == other.layers[x].shape for x in range(len(self.layers))):
             raise ValueError('Both parents must have same shape')
 
+        crossover_method = 'single_neuron'
         child = copy.deepcopy(self)
         if crossover:
-            for i in range(len(child.layers)):
-                pass_on = np.random.rand(1, child.layers[i].shape[1]) < self.crossover_rate   #TIM 0.5
-                child.layers[i] = pass_on * self.layers[i] + ~pass_on * other.layers[i]
-                child.biases[i] = pass_on * self.biases[i] + ~pass_on * other.biases[i]
+            if crossover_method == 'weights_in':    # Same as original code
+                for i in range(len(child.layers)):
+                    pass_on = np.random.rand(1, child.layers[i].shape[1]) < self.crossover_rate   #TIM 0.5
+                    child.layers[i] = pass_on * self.layers[i] + ~pass_on * other.layers[i]
+                    child.biases[i] = pass_on * self.biases[i] + ~pass_on * other.biases[i]
+
+            elif crossover_method == 'single_neuron':   # HENRY
+                # Retrieve position of neuron to cross over
+                n_layers = len(self.layers)
+                neuron_layer = random.randint(0, n_layers)
+                if neuron_layer != n_layers:
+                    neuron_index = random.randint(0, self.layers[neuron_layer].shape[0] - 1)
+                else:
+                    neuron_index = random.randint(0, self.layers[neuron_layer - 1].shape[1] - 1)
+
+                # Update weights out of neuron
+                if neuron_layer != n_layers:
+                    child.layers[neuron_layer][neuron_index] = other.layers[neuron_layer][neuron_index]
+
+                # Update weights (and bias) into neuron
+                if neuron_layer != 0:
+                    child.layers[neuron_layer - 1][:, neuron_index] = other.layers[neuron_layer - 1][:, neuron_index]
+                    child.biases[neuron_layer - 1][:, neuron_index] = other.biases[neuron_layer - 1][:, neuron_index]
+                    
         if mutate:
             child.mutate()
         return child
@@ -250,9 +272,5 @@ def main(mutate=True, crossover=True, mutation_std=0.05, crossover_rate=0.5,
     plt.show()
 
 if __name__ == '__main__':
-    main(mutate=True, crossover=True, mutation_std=0.05, crossover_rate=0.05, 
+    main(mutate=True, crossover=True, mutation_std=0.025, crossover_rate=0.5,
          activation='tanh', num_generations=1000)
-
-
-
-
