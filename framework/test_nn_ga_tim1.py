@@ -22,7 +22,7 @@ from matplotlib import pyplot as plt
 
 class Organism():
     def __init__(self, dimensions, use_bias=True, output='softmax', activation='relu', 
-                 mutation_std=0.05, crossover_rate=0.5):
+                 mutation_std=0.05, crossover_rate=0.5, mutate_single_layer=False, mutate_single_neuron=False):
         """ TIM: Added configurable crossover rate
             TIM: Added configurable hidden layer activation fn
         """
@@ -34,6 +34,8 @@ class Organism():
         self.layer_activation = self._activation(activation)  #TIM added
         self.mutation_std = mutation_std
         self.crossover_rate = crossover_rate
+        self.mutate_single_layer = mutate_single_layer 
+        self.mutate_single_neuron = mutate_single_neuron
         for i in range(len(dimensions)-1):
             shape = (dimensions[i], dimensions[i+1])
             std = np.sqrt(2 / sum(shape))
@@ -107,11 +109,42 @@ class Organism():
         return choices.reshape((-1,1))
 
     def mutate(self):
-        """Mutate the organism's weights in place."""
-        for i in range(len(self.layers)):
-            self.layers[i] += np.random.normal(0, self.mutation_std, self.layers[i].shape)
-            if self.use_bias:
-                self.biases[i] += np.random.normal(0, self.mutation_std, self.biases[i].shape)
+        """Mutate the organism's weights in place.
+        TIM: Modifed to enable different mutation patterns:
+            mutate_single_layer=False, mutate_single_neuron=False: mutate weights of all neurons in all layers
+            mutate_single_layer=False, mutate_single_neuron=true: mutate weights of single neuron in all layers
+            mutate_single_layer=True, mutate_single_neuron=true: mutate weights of single neuron in single layer
+            mutate_single_layer=True, mutate_single_neuron=False: mutate weights of all neurons in single layer            
+        """
+        if self.mutate_single_layer:
+            n_layers = len(self.layers) - 1
+            i = random.randint(0, n_layers)
+            if self.mutate_single_neuron:   #TIM mutate weights of single neuron in single layer i which will be column n of layers[i] weight matrix
+                n = random.randint(0, self.layers[i].shape[1] - 1)
+                #print('Single layer', i, 'single neuron', n, 'self.layers[i].shape', self.layers[i].shape ,'self.layers[i][:,n].shape', self.layers[i][:,n].shape) 
+                self.layers[i][:,n] += np.random.normal(0, self.mutation_std, self.layers[i][:,n].shape)  
+                if self.use_bias:
+                    #print('Single layer', i, 'single neuron', n, 'self.biases[i].shape', self.biases[i].shape) 
+                    self.biases[i][0, n] += np.random.normal(0, self.mutation_std, 1)  
+
+            else:                   #TIM mutate all neurons in single layer
+                self.layers[i] += np.random.normal(0, self.mutation_std, self.layers[i].shape)
+                if self.use_bias:
+                    self.biases[i] += np.random.normal(0, self.mutation_std, self.biases[i].shape)
+        else:                        
+            if self.mutate_single_neuron:  #TIM mutate weights of single neuron in each layer which will be column n of layers[i] weight matrix
+                for i in range(len(self.layers)):
+                    n = random.randint(0, self.layers[i].shape[1] - 1)
+                    self.layers[i][:,n] += np.random.normal(0, self.mutation_std, self.layers[i][:,n].shape)  
+                    if self.use_bias:
+                        self.biases[i][0, n] += np.random.normal(0, self.mutation_std, 1) 
+            else:                     #TIM the original code mutate weights of all neurons in all layers
+                for i in range(len(self.layers)):
+                    self.layers[i] += np.random.normal(0, self.mutation_std, self.layers[i].shape)
+                    if self.use_bias:
+                        self.biases[i] += np.random.normal(0, self.mutation_std, self.biases[i].shape)
+        return
+            
 
     def mate(self, other, mutate=True, crossover=True, crossover_method='single_neuron'):
         """Mate two organisms together, create an offspring, mutate it, and return it.
@@ -160,7 +193,9 @@ class Organism():
         TIM: Added crossover_rate + layer activation fn"""
         dimensions = [x.shape[0] for x in self.layers] + [self.layers[-1].shape[1]]
         return Organism(dimensions, use_bias=self.use_bias, output=self.output, activation=self.layer_activation,
-                        mutation_std=self.mutation_std, crossover_rate=self.crossover_rate)
+                        mutation_std=self.mutation_std, crossover_rate=self.crossover_rate,
+                        mutate_single_layer = self.mutate_single_layer, 
+                        mutate_single_neuron = self.mutate_single_neuron)
 
 
 class Ecosystem():
@@ -232,6 +267,15 @@ class Ecosystem():
         else:
             return self.population[np.argsort(rewards)[-1]]
         
+    def turn_on_mutation_strategy(self, mutate_single_layer=False, mutate_single_neuron=False):
+        """ TIM: Turn on a particular mutation strategy for the whole population
+        """
+        for index, organism in enumerate(self.population):
+            organism.mutate_single_layer = mutate_single_layer 
+            organism.mutate_single_neuron = mutate_single_neuron
+
+        return
+    
 
 def simulate_and_evaluate(organism, actual_f, loss_f, replicates=500):
     """ TIM: creates a large batch of 500 numbers incrementing from 0..1 
@@ -267,7 +311,8 @@ def plot_fn_approximation(X, y_pred, y_true, title='Plot Title'):
 def main_single_output(mutate=True, crossover=True, mutation_std=0.05, 
                        crossover_rate=0.5, crossover_method='single_neuron',
                        activation='relu', output='linear', num_generations=1000,
-                       architecture = [1, 16,16,16, 1], population_size=100):
+                       architecture = [1, 16,16,16, 1], population_size=100,
+                       mutate_single_layer=False, mutate_single_neuron=False):
     """Learn and visualize a function from [0,1] to something else
     TIM: added configurable crossover, mutation and layer activation fn
     TIM: Added various extra args to main for more flexible running
@@ -282,7 +327,10 @@ def main_single_output(mutate=True, crossover=True, mutation_std=0.05,
 
     original_organism = Organism(architecture, output=output, use_bias=True,
                                  activation=activation, mutation_std=mutation_std, 
-                                 crossover_rate=crossover_rate)
+                                 crossover_rate=crossover_rate, 
+                                 mutate_single_layer=mutate_single_layer, 
+                                 mutate_single_neuron=mutate_single_neuron)
+    
     ecosystem = Ecosystem(original_organism, scoring_function, population_size=population_size, 
                           mating=True, mutate=mutate, crossover=crossover,
                           crossover_method=crossover_method)
@@ -304,7 +352,9 @@ def main_three_output(mutate=True, crossover=True, mutation_std=0.05,
                       crossover_rate=0.5, crossover_method='single_neuron',
                       activation='relu', output='linear', num_generations=1000, 
                       architecture = [1, 16,16,16, 3],
-                      population_size=100):
+                      population_size=100,
+                      mutate_single_layer=False, mutate_single_neuron=False,
+                      mutate_strategy_turnon=11):
     """Learn and visualize a function from [0,1] to something else
     TIM: added configurable crossover, mutation and layer activation fn
     TIM: Added various extra args to main for more flexible running
@@ -322,12 +372,18 @@ def main_three_output(mutate=True, crossover=True, mutation_std=0.05,
 
     original_organism = Organism(architecture, output=output, use_bias=True,
                                  activation=activation, mutation_std=mutation_std, 
-                                 crossover_rate=crossover_rate)
+                                 crossover_rate=crossover_rate, 
+                                 mutate_single_layer=False, 
+                                 mutate_single_neuron=False)
     ecosystem = Ecosystem(original_organism, scoring_function, population_size=population_size, 
                           mating=True, mutate=mutate, crossover=crossover,
                           crossover_method=crossover_method)
     best_organisms = [ecosystem.get_best_organism()]
     for i in range(num_generations):
+        if i == mutate_strategy_turnon:
+            print(f'{i} Turning on mutation strategy: Single Layer:{mutate_single_layer}  Single Neuron:{mutate_single_neuron}')
+            ecosystem.turn_on_mutation_strategy(mutate_single_layer=mutate_single_layer,
+                                                mutate_single_neuron=mutate_single_neuron)
         this_generation_best = ecosystem.generation()
         #this_generation_best = ecosystem.get_best_organism(include_reward=True)
         best_organisms.append(this_generation_best[0])
@@ -349,8 +405,9 @@ if __name__ == '__main__':
     main_single_output(mutate=True, crossover=False, mutation_std=0.025, crossover_rate=0.05, crossover_method='single_neuron',
          activation='tanh', num_generations=500, architecture=[1, 16,16,16, 1], population_size=100)
 
-    main_three_output(mutate=True, crossover=True, mutation_std=0.025, crossover_rate=0.5, crossover_method='single_neuron',
-         activation='relu', num_generations=1000, architecture=[1, 32,32,32,32,64, 3], population_size=100)
+    main_three_output(mutate=True, crossover=False, mutation_std=0.025, crossover_rate=0.5, crossover_method='single_neuron',
+         activation='tanh', num_generations=1000, architecture=[1, 32,32,32,32,64, 3], population_size=100,
+         mutate_single_layer=True, mutate_single_neuron=True, mutate_strategy_turnon=11)
 
 
 
@@ -363,9 +420,14 @@ if __name__ == '__main__':
     loss_f = lambda y, y_hat : np.mean(np.abs(y - y_hat)**(2))  # the loss function (negative reward)
 
     X = np.linspace(0, 1, 200)
-    org = Organism([1, 16,16,16, 3], output='linear', use_bias=True,
+    org = Organism([1, 32,32,32,32,64, 3], output='linear', use_bias=True,
                                  activation='tanh', mutation_std=0.025, 
-                                 crossover_rate=0.05)
+                                 crossover_rate=0.05, 
+                                 mutate_single_layer=True, 
+                                 mutate_single_neuron=True)
+    
+    org.mutate()
+    
     y_pred = org.predict(X.reshape(-1,1))
     print(y_pred, 'shape=', y_pred.shape)  #Tim: (200, 3)
     y_pred[0,1]
