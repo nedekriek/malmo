@@ -312,7 +312,8 @@ def main_single_output(mutate=True, crossover=True, mutation_std=0.05,
                        crossover_rate=0.5, crossover_method='single_neuron',
                        activation='relu', output='linear', num_generations=1000,
                        architecture = [1, 16,16,16, 1], population_size=100,
-                       mutate_single_layer=False, mutate_single_neuron=False):
+                       mutate_single_layer=False, mutate_single_neuron=False,
+                       mutate_strategy_turnon=11):
     """Learn and visualize a function from [0,1] to something else
     TIM: added configurable crossover, mutation and layer activation fn
     TIM: Added various extra args to main for more flexible running
@@ -328,14 +329,18 @@ def main_single_output(mutate=True, crossover=True, mutation_std=0.05,
     original_organism = Organism(architecture, output=output, use_bias=True,
                                  activation=activation, mutation_std=mutation_std, 
                                  crossover_rate=crossover_rate, 
-                                 mutate_single_layer=mutate_single_layer, 
-                                 mutate_single_neuron=mutate_single_neuron)
+                                 mutate_single_layer=False, 
+                                 mutate_single_neuron=False)
     
     ecosystem = Ecosystem(original_organism, scoring_function, population_size=population_size, 
                           mating=True, mutate=mutate, crossover=crossover,
                           crossover_method=crossover_method)
     best_organisms = [ecosystem.get_best_organism()]
     for i in range(num_generations):
+        if i == mutate_strategy_turnon:
+            print(f'{i} Turning on mutation strategy: Single Layer:{mutate_single_layer}  Single Neuron:{mutate_single_neuron}')
+            ecosystem.turn_on_mutation_strategy(mutate_single_layer=mutate_single_layer,
+                                                mutate_single_neuron=mutate_single_neuron)
         this_generation_best = ecosystem.generation()
         #this_generation_best = ecosystem.get_best_organism(include_reward=True)
         best_organisms.append(this_generation_best[0])
@@ -403,11 +408,12 @@ def main_three_output(mutate=True, crossover=True, mutation_std=0.05,
 
 if __name__ == '__main__':
     main_single_output(mutate=True, crossover=False, mutation_std=0.025, crossover_rate=0.05, crossover_method='single_neuron',
-         activation='tanh', num_generations=500, architecture=[1, 16,16,16, 1], population_size=100)
+         activation='tanh', num_generations=500, architecture=[1, 16,16,16, 1], population_size=100,
+         mutate_single_layer=True, mutate_single_neuron=False, mutate_strategy_turnon=11)
 
     main_three_output(mutate=True, crossover=False, mutation_std=0.025, crossover_rate=0.5, crossover_method='single_neuron',
          activation='tanh', num_generations=1000, architecture=[1, 32,32,32,32,64, 3], population_size=100,
-         mutate_single_layer=True, mutate_single_neuron=True, mutate_strategy_turnon=11)
+         mutate_single_layer=True, mutate_single_neuron=False, mutate_strategy_turnon=11)
 
 
 
