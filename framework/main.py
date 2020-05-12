@@ -39,23 +39,13 @@ def rgb2gray(rgb):
     """
     return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
 
-
-
 class Agent(object):
     newid = itertools.count()
     def __init__(self):
-        self.count = 0 #Used to keep track of how many inputs it has taken
+        self.count = 0                              #Used to keep track of how many inputs it has taken
         self.host = MalmoPython.AgentHost()
         malmoutils.parse_command_line(self.host)
-        self.index = next(Agent.newid) # first agent is 0, 2nd is 1...
-        self.queued_commands = [] # this commands are sent the next time that act() is called
-
-        #TIM: Matthew had a separate "Sunwatcher" agent inheriting from this Agent class. for simplicity I've just mergred his Sunwatcher code into this agent so we can call it later if we want to
-        self.yaw = 0.0   # your current facing (yaw)
-        self.pitch = 0.0 # your current facing (pitch)
-
-        ## NOTE: You may want to add some code here.
-
+        self.index = next(Agent.newid)              #First agent is 0, second is 1...
 
     def connect(self, client_pool):
         self.client_pool = client_pool
@@ -166,45 +156,55 @@ class Agent(object):
         return r,g,b,d
 
     def run(self):
-        """run the agent on the world"""
-        total_reward = []
-        current_reward = 0
+        """Mitchell: This function runs the agent on the world"""
+        total_reward = []   # List of all rewards received
+        current_reward = 0  # Current reward
         
-        # wait for a valid observation
+        # Wait for a valid observation
         world_state = self.host.peekWorldState()
         while world_state.is_mission_running and all(e.text=='{}' for e in world_state.observations):
             world_state = self.host.peekWorldState()
-        # wait for a frame to arrive after that
+            
+        # Wait for a frame to arrive after that
         num_frames_seen = world_state.number_of_video_frames_since_last_state
         while world_state.is_mission_running and world_state.number_of_video_frames_since_last_state == num_frames_seen:
             world_state = self.host.peekWorldState()
         world_state = self.host.getWorldState()
-        for err in world_state.errors:
-            print(err)
+        for error in world_state.errors:
+            print(error)
 
+        self.host.setObservationsPolicy(MalmoPython.ObservationsPolicy.LATEST_OBSERVATION_ONLY)
+
+        # Check mission is still running
         if not world_state.is_mission_running:
-            return 0 # mission already ended
+            return 0
 
         assert len(world_state.video_frames) > 0, 'No video frames!?'
 
-
-        #Here is the actual agent running
+        # Here is the actual agent running
         start_time = time.time()
 
-        #first action
+        # Act once
         total_reward += [self.act(current_reward)]
         
         while world_state.is_mission_running:
             world_state = self.host.peekWorldState()
-            time.sleep(0.1)
             current_reward = sum(r.getValue() for r in world_state.rewards)
             total_reward += [self.act(current_reward)]
             
-        fitness = time.time() - start_time
-        return total_reward
+            #Extract relevant information. Can also get "YPos", "Yaw", "Pitch"
+            if world_state.number_of_observations_since_last_state > 0:
+                msg = world_state.observations[-1].text
+                obs = json.loads(msg)
+                print(round(obs["XPos"],3),round(obs["ZPos"],3))
+        
+        time_taken = time.time() - start_time
+        total_reward = sum(total_reward)
+        return (total_reward, time_taken)
 
     
     def act(self,current_reward):
+        """Mitchell: This function is called to make one move in the world"""
         actions = ['turn', "strafe", "move"]
 
         world_state = self.host.getWorldState()
@@ -215,16 +215,12 @@ class Agent(object):
             #sv.display_data(blue)
             arr = self.pixels_to_numpy(pixels)
             sensory_info = self.get_sensory_info(arr)
-
             
-            ## NOTE: Most of your code will go here.
-
             #action = our_algorithm(sensory_info)
-            #self.queued_commands.append(action)
-
+            
             self.host.sendCommand(random.choice(actions) + " " + str(random.random()*2-1))
             
-        return 0
+        return current_reward #Subtract one from the reward for each second passed
 
 
 
@@ -236,7 +232,7 @@ def main():
     drawing_decorators = ''
     drawing_decorators += cuboid(-3,25,-2, 3,29,10, 'air') #Clear area
     #Ceiling
-    drawing_decorators += cuboid(-3,25,-2, 3,25,10, 'emerald_block') #Green - Floor
+    drawing_decorators += cuboid(-3,24,-2, 3,25,10, 'emerald_block') #Green - Floor
     drawing_decorators += cuboid(-3,29,-2, 3,29,10, 'emerald_block') #Green - Ceiling
     #Walls
     drawing_decorators += cuboid(3,25,-2, 3,29,10, 'sea_lantern') #Blue - Wall
@@ -256,7 +252,7 @@ def main():
         'StartTime' : 6000, #Fixed start time (Midday) - Mitchell
     }
 
-    mission_xml = cs765_utils.load_mission_xml('./desert_island.xml',subset)
+    mission_xml = cs765_utils.load_mission_xml('./mission.xml',subset)
     my_mission = MalmoPython.MissionSpec(mission_xml, True)
 
     client_pool = MalmoPython.ClientPool()
@@ -271,13 +267,13 @@ def main():
         print("Waiting for the mission to start", end=' ')
         cs765_utils.safeWaitForStart([agent.host])
 
-        # -- run the agent in the world -- #
-        reward = agent.run()
+        # Focus the agent on the item in the hotbar
+        agent.host.sendCommand("hotbar.9 1")
+        agent.host.sendCommand("hotbar.9 0")
 
-        total_reward = 0
-        for r in reward:
-            total_reward +=r
-        print('Cumulative reward: %d' % total_reward)
+        total_reward = agent.run()
+
+        print('Cumulative reward:', total_reward)
         rewards += [total_reward]
 
         # -- clean up -- #
