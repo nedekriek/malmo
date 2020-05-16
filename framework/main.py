@@ -46,6 +46,7 @@ class Agent(object):
         self.host = MalmoPython.AgentHost()
         malmoutils.parse_command_line(self.host)
         self.index = next(Agent.newid)              #First agent is 0, second is 1...
+        self.iteration = 0                          #Used to generate CSV files
 
     def connect(self, client_pool):
         self.client_pool = client_pool
@@ -155,10 +156,20 @@ class Agent(object):
         d = arr[:,:,3]    #.astype(np.float32)/255.0
         return r,g,b,d
 
-    def run(self):
-        """Mitchell: This function runs the agent on the world"""
+    def output_actions(self, actions):
+        """Mitchell: Saves a log of the X, Z, Yaw, Pitch, Action of the agent"""
+        save_dir = "logs/"
+        with open(save_dir+str(self.iteration)+'.csv', 'w') as file:
+            for action in actions:
+                #Write X, Z, Yaw, Pitch, Action for each decision
+                file.write(str(action[0])+','+str(action[1])+','+str(action[2])+','+str(action[3])+','+action[4]+'\n')
+
+    def run(self, log=True):
+        """Mitchell: This function runs the agent on the world, log=True will log the path and actions of the agent in a csv file"""
         total_reward = []   # List of all rewards received
         current_reward = 0  # Current reward
+        self.iteration += 1
+        actions = []        # List of agents past for logging
         
         # Wait for a valid observation
         world_state = self.host.peekWorldState()
@@ -185,27 +196,38 @@ class Agent(object):
         start_time = time.time()
 
         # Act once
-        total_reward += [self.act(current_reward)]
+        action, returned_reward = self.act(current_reward)
+        total_reward += [returned_reward]
+        if world_state.number_of_observations_since_last_state > 0 and log:
+            msg = world_state.observations[-1].text
+            obs = json.loads(msg)
+            time_point = [obs["XPos"], obs["ZPos"], obs["Pitch"], obs["Yaw"], action] 
+            actions += [time_point]
         
         while world_state.is_mission_running:
             world_state = self.host.peekWorldState()
             current_reward = sum(r.getValue() for r in world_state.rewards)
-            total_reward += [self.act(current_reward)]
-            
+            action, returned_reward = self.act(current_reward)
+            total_reward += [returned_reward]
+
             #Extract relevant information. Can also get "YPos", "Yaw", "Pitch"
-            if world_state.number_of_observations_since_last_state > 0:
+            if world_state.number_of_observations_since_last_state > 0 and log:
                 msg = world_state.observations[-1].text
                 obs = json.loads(msg)
-                print(round(obs["XPos"],3),round(obs["ZPos"],3))
+                time_point = [obs["XPos"], obs["ZPos"], obs["Pitch"], obs["Yaw"], action] 
+                actions += [time_point]
         
         time_taken = time.time() - start_time
+        if log:
+            self.output_actions(actions)
         total_reward = sum(total_reward)
         return (total_reward, time_taken)
 
     
     def act(self,current_reward):
         """Mitchell: This function is called to make one move in the world"""
-        actions = ['turn', "strafe", "move"]
+        actions = ['turn', "strafe", "move", "use", "pitch"]
+        action = "None"
 
         world_state = self.host.getWorldState()
 
@@ -217,10 +239,14 @@ class Agent(object):
             sensory_info = self.get_sensory_info(arr)
             
             #action = our_algorithm(sensory_info)
+            action = random.choice(actions)
+            if action != "use": #Use command takes a discrete input 
+                action += " " + str(random.random()*2-1)
+            else:
+                action += " 1"
+            self.host.sendCommand(action)
             
-            self.host.sendCommand(random.choice(actions) + " " + str(random.random()*2-1))
-            
-        return current_reward #Subtract one from the reward for each second passed
+        return action, current_reward #Subtract one from the reward for each second passed
 
 
 
@@ -271,7 +297,7 @@ def main():
         agent.host.sendCommand("hotbar.9 1")
         agent.host.sendCommand("hotbar.9 0")
 
-        total_reward = agent.run()
+        total_reward = agent.run(False)
 
         print('Cumulative reward:', total_reward)
         rewards += [total_reward]
