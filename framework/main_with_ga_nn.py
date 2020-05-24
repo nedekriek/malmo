@@ -65,6 +65,7 @@ def get_sensory_info_shape(C):
 C = {}
 C['image_log'] = "image_log/"
 C['save_dir'] = "logs/"
+C['XML'] = "./scenarios/scenario1.xml"  #Mitchell:  scenario1.xml , scenario2.xml , scenario3.xml in increasing difficulty
 C['h'] = 240                 #minecraft image dims (need to be changed in XML as well as here)
 C['w'] = 320
 C['actions'] = ['turn', "strafe", "move", "use", "pitch"]
@@ -78,8 +79,10 @@ C['turn_multiplier'] = 1.0
 C['strafe_multiplier'] = 1.0
 C['move_multiplier'] = 1.0
 C['pitch_multiplier'] = 1.0
-C['step_reward'] = -1.0           #TIM: Could be -1, 0 or +1. This is the reward returned for surviving a single step.  
-
+C['step_reward'] = -1.0                 #TIM: Could be -1, 0 or +1. This is the reward returned for surviving a single step.  
+C["Dist_multiplier"] = 200              #Mitchell: Weight of distance on result
+C["Dist_threshold"] = 9                 #Mitchell: How many blocks away before we take away points (9 is start position)
+C['Goal'] = [0, 9]                      #Mitchell: The X and Z coordinate of the goal, this doesn't between XML files, Y doesn't matter
 
 #TIM: below are agent.get_sensory_info() params:
 C['s_height'] = 10           # was 60 height of sensory representation. Minecraft Image height must be exact multiple of this
@@ -294,7 +297,7 @@ class Agent(object):
            Tim: added brain argument so now this function will run an agent with a 
                 particular brain (out of it's population of brains).
         """
-        
+        distance_from_goal = -1
         total_reward = []   # List of all rewards received
         current_reward = 0  # Current reward
         self.iteration += 1
@@ -343,16 +346,18 @@ class Agent(object):
             if world_state.number_of_observations_since_last_state > 0 and self.C['log']:
                 msg = world_state.observations[-1].text
                 obs = json.loads(msg)
-                time_point = [obs["XPos"], obs["ZPos"], obs["Pitch"], obs["Yaw"], action] 
+                time_point = [obs["XPos"], obs["ZPos"], obs["Pitch"], obs["Yaw"], action]
+                distance_from_goal = (obs["XPos"]-C["Goal"][0])**2 + (obs["ZPos"]-C["Goal"][1])**2  #Mitchell: Eudclidean distance between current pos and goal 
                 actions += [time_point]
         
         time_taken = time.time() - start_time
         if self.C['log']:
             self.output_actions(actions)
-            
-        #TODO TIM: would be great to try adding an additional reward here: "final distance from goal" reward.. 
-        # total_reward.append(reward based on how far it ended up from goal)
         
+        if distance_from_goal != -1: #Sometimes distance from goal isn't ca
+            print(distance_from_goal)
+            total_reward.append((C["Dist_threshold"]-distance_from_goal)*C["Dist_multiplier"])
+            
         total_reward = sum(total_reward)
         self.brain_population.population[brain].fitness_score = total_reward   #TIM: super important to assign each agent brain a fitness score 
         return (total_reward, time_taken)
@@ -410,15 +415,16 @@ class Agent(object):
             
         return action, C['step_reward'] # could be positive number ot reward longevity, 0, or negative number to reward efficiency
 
-def plot_fitness(max_fitness, avg_fitness, title='Max and Avg fitness By Generation'):
+def plot_fitness(max_fitness, avg_fitness):
     """ TIM: plot fitness by generation
+    Mitchell: plotting seperate plots for max and average
     """
-    plt.plot(max_fitness, label='Max', c='k')
-    plt.plot(avg_fitness, label='Avg')
-    plt.legend()
-    plt.title(title)
-    plt.xlabel('Generation')
-    plt.ylabel('Fitness')
+    fig, ax = plt.subplots(2)
+    ax[0].plot(max_fitness, label='Max', c='k')
+    ax[0].set(xlabel='Generation', ylabel='Fitness', title="Max Fitness By Generation")
+    ax[1].plot(avg_fitness, label='Avg')
+    ax[1].set(xlabel='Generation', ylabel='Fitness', title="Average Fitness By Generation")
+    plt.tight_layout()
     plt.show()
 
 
@@ -431,31 +437,8 @@ def main(C):
     
     agent = Agent(C) #Single agent
 
-    #Decorators drawn between lives
-    drawing_decorators = ''
-    drawing_decorators += cuboid(-3,25,-2, 3,29,10, 'air') #Clear area
-    #Ceiling
-    drawing_decorators += cuboid(-3,24,-2, 3,25,10, 'emerald_block') #Green - Floor
-    drawing_decorators += cuboid(-3,29,-2, 3,29,10, 'emerald_block') #Green - Ceiling
-    #Walls
-    drawing_decorators += cuboid(3,25,-2, 3,29,10, 'sea_lantern') #Blue - Wall
-    drawing_decorators += cuboid(-3,25,-2, -3,29,10, 'sea_lantern') #Blue - Wall
-    drawing_decorators += cuboid(-3,25,-2, 3,29,-2, 'sea_lantern') #Blue - Wall
-    drawing_decorators += cuboid(-3,25,10, 3,29,10, 'sea_lantern') #Blue - Wall
-    #Divider
-    drawing_decorators += cuboid(-3,25,3, 3,29,3, 'sea_lantern') #Blue - Wall
-    drawing_decorators += cuboid(-1,25,3, -1,28,3, 'air') #Blue - Wall
-    drawing_decorators += cuboid(1,25,3, 1,28,3, 'air') #Blue - Wall
-    #Threat
-    drawing_decorators += cuboid(-1,25,3,1,25,3, 'lava') #Blue - Wall
-
-
-    subset = {
-        'DrawingDecorators' : drawing_decorators,
-        'StartTime' : 6000, #Fixed start time (Midday) - Mitchell
-    }
-
-    mission_xml = cs765_utils.load_mission_xml('./mission.xml',subset)
+    mission_xml = cs765_utils.load_mission_xml(C['XML'])
+    print(mission_xml)
     my_mission = MalmoPython.MissionSpec(mission_xml, True)
 
     client_pool = MalmoPython.ClientPool()

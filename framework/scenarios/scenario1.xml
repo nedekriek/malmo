@@ -15,7 +15,19 @@
 		<ServerHandlers>
 			<FlatWorldGenerator forceReset="false" generatorString="2;7,5x1,5x3,5x12,10x9;24;" seed=""/>
 			<DrawingDecorator>
-				{{ DrawingDecorators }}
+                <!--Clear area-->
+				<DrawCuboid x1="-3" y1="25" z1="-2" x2="3" y2="29" z2="10" type='air'/>
+                <!--Floor-->
+                <DrawCuboid x1="-3" y1="24" z1="-2" x2="3" y2="25" z2="10" type='emerald_block'/>
+                <!--Walls-->
+                <DrawCuboid x1="2" y1="25" z1="-2" x2="2" y2="29" z2="10" type='sea_lantern'/>
+                <DrawCuboid x1="-2" y1="25" z1="-2" x2="-2" y2="29" z2="10" type='sea_lantern'/>
+                <DrawCuboid x1="-2" y1="25" z1="-2" x2="2" y2="29" z2="-2" type='sea_lantern'/>
+                <DrawCuboid x1="-2" y1="25" z1="10" x2="2" y2="29" z2="10" type='sea_lantern'/>
+                <!--Ceiling-->
+                <DrawCuboid x1="-3" y1="29" z1="-2" x2="3" y2="29" z2="10" type='emerald_block'/>
+                <!--Threat-->
+                <DrawCuboid x1="-2" y1="25" z1="3" x2="1" y2="25" z2="3" type='lava'/>
 			</DrawingDecorator>      
 			<ServerQuitFromTimeUp timeLimitMs="30000" description="Out_of_time"/>
 			<ServerQuitWhenAnyAgentFinishes description="Finished"/>
@@ -26,7 +38,7 @@
 		<AgentStart>
 			<Placement x="0" y="26.0" z="0.0" pitch="0" yaw="0"/>
 			<Inventory>
-				<InventoryItem slot="0" type="sand" quantity="10"/>
+				<InventoryItem slot="0" type="sand" quantity="3"/>
 			</Inventory>
 		</AgentStart>
 		<AgentHandlers>
