@@ -79,7 +79,7 @@ C['turn_multiplier'] = 1.0
 C['strafe_multiplier'] = 1.0
 C['move_multiplier'] = 1.0
 C['pitch_multiplier'] = 1.0
-C['step_reward'] = -1.0                 #TIM: Could be -1, 0 or +1. This is the reward returned for surviving a single step.  
+C['step_reward'] = -1                 #TIM: Could be -1, 0 or +1. This is the reward returned for surviving a single step.
 C["Dist_multiplier"] = 200              #Mitchell: Weight of distance on result
 C["Dist_threshold"] = 9                 #Mitchell: How many blocks away before we take away points (9 is start position)
 C['Goal'] = [0, 9]                      #Mitchell: The X and Z coordinate of the goal, this doesn't between XML files, Y doesn't matter
@@ -104,7 +104,7 @@ print('NN input vector shape with above params = ', dummy_sensory_info_shape[0])
 C['mutate']=True, 
 C['crossover']=True, 
 C['mutation_std']=0.025
-C['crossover_rate']=0.05
+C['crossover_rate']=0.25
 C['crossover_method']='single_neuron'
 C['activation']='tanh'
 C['output']='linear'
@@ -164,7 +164,7 @@ class Agent(object):
         self.C = copy.deepcopy(C)                   #TIM: dictionary of parameters. The deepcopy is to force it to take a copy of C rather than just pointing to C so we can have multiple agents with different Cs
 
         #TIM: Note each brain's fitness is set after running the game with that agent/brain, the scoring fn just retrieves it
-        self.scoring_function = lambda brain : eval_fitness(brain)  #Will return the current fitness score from this brain
+        self.scoring_function = lambda brain : eval_fitness(brain)  #Will return the current fitness score from this brain     # TODO: Why not just brain.fitness_score ?
         #TIM: Create population of agent brains
         self.brain_population = Ecosystem(self.C['original_brain'], 
                               self.scoring_function, 
@@ -347,7 +347,7 @@ class Agent(object):
                 msg = world_state.observations[-1].text
                 obs = json.loads(msg)
                 time_point = [obs["XPos"], obs["ZPos"], obs["Pitch"], obs["Yaw"], action]
-                distance_from_goal = (obs["XPos"]-C["Goal"][0])**2 + (obs["ZPos"]-C["Goal"][1])**2  #Mitchell: Eudclidean distance between current pos and goal 
+                distance_from_goal = (obs["XPos"]-C["Goal"][0])**2 + (obs["ZPos"]-C["Goal"][1])**2  #Mitchell: Eudclidean distance between current pos and goal
                 actions += [time_point]
         
         time_taken = time.time() - start_time
@@ -358,9 +358,9 @@ class Agent(object):
             print(distance_from_goal)
             total_reward.append((C["Dist_threshold"]-distance_from_goal)*C["Dist_multiplier"])
             
-        total_reward = sum(total_reward)
-        self.brain_population.population[brain].fitness_score = total_reward   #TIM: super important to assign each agent brain a fitness score 
-        return (total_reward, time_taken)
+        total_reward_sum = sum(total_reward)
+        self.brain_population.population[brain].fitness_score = total_reward_sum   #TIM: super important to assign each agent brain a fitness score
+        return (total_reward_sum, time_taken)
 
     
     def act(self, current_reward, brain=0):
@@ -473,8 +473,8 @@ def main(C):
 
         print(f'Gen:{i}  Evolving population based on fitness scores...')
         this_generation_best_brain = agent.brain_population.generation()
-        
-        
+
+
         gen_avg_reward = sum([r[0] for r in rewards]) / C['population_size']
         gen_max_reward = max([r[0] for r in rewards])
         if gen_max_reward > overall_best_fitness:
@@ -484,6 +484,8 @@ def main(C):
         #TODO Write the max & avg fitness out to a file here!
         generational_max_fitness.append(gen_max_reward)
         generational_avg_fitness.append(gen_avg_reward)
+        fitness_stats = np.asarray(rewards)
+        np.savetxt(f'logs/fitness_gen{i}.csv', fitness_stats, delimiter=',')
         print(f'FINISHED Gen {i}:  Max Reward:{gen_max_reward}  Avg Reward:{gen_avg_reward}')
         print(f'BEST FITNESS TO DATE:{overall_best_fitness} in Gen {overall_best_fitness_gen}')
     plot_fitness(generational_max_fitness, generational_avg_fitness)    
