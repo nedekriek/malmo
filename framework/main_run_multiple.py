@@ -115,7 +115,7 @@ C['crossover_rate']=0.25
 C['crossover_method']='single_neuron'
 C['activation']='tanh'
 C['output']='linear'
-C['num_generations']=20
+C['num_generations']=3
 # NN architecture - NOTE: the first layer value must be the actual size of the sensory_input
 #                          and the last layer must be the number of actions
 C['architecture'] = [ dummy_sensory_info_shape[0], 
@@ -123,7 +123,7 @@ C['architecture'] = [ dummy_sensory_info_shape[0],
                       dummy_sensory_info_shape[0] // 10, 
                       dummy_sensory_info_shape[0] // 10, 
                       C['num_actions']]       
-C['population_size']=30
+C['population_size']=2
 C['mutate_single_layer']=True
 C['mutate_single_neuron']=True
 C['mutate_strategy_turnon']=6         #number of generations to initially run with all weights mutated before switching to mutate single/layer/neuron settings.
@@ -166,7 +166,7 @@ class Agent(object):
         self.count = 0                              #Used to keep track of how many inputs it has taken
         self.host = MalmoPython.AgentHost()
         malmoutils.parse_command_line(self.host)
-        self.index = next(Agent.newid)              #First agent is 0, second is 1...
+        self.index = 0#next(Agent.newid)              #First agent is 0, second is 1...
         self.iteration = 0                          #Used to generate CSV files
         self.C = copy.deepcopy(C)                   #TIM: dictionary of parameters. The deepcopy is to force it to take a copy of C rather than just pointing to C so we can have multiple agents with different Cs
 
@@ -362,7 +362,7 @@ class Agent(object):
         if current_reward == 1000:
             current_reward = C["Goal_reward"]
         elif current_reward == 0:
-            current_reward = C["Suffocation_penalty"]
+            current_reward = C["Lava_penalty"]
         elif current_reward == -100:
             current_reward = C["Lava_penalty"]
         elif current_reward == 100:
@@ -446,16 +446,28 @@ def plot_fitness(max_fitness, avg_fitness):
     ax[1].plot(avg_fitness, label='Avg')
     ax[1].set(xlabel='Generation', ylabel='Fitness', title="Average Fitness By Generation")
     plt.tight_layout()
-    plt.show()
+    plt.savefig(C['save_dir']+"_Fitness.png")
+    #plt.show()
 
 
-def main(C):
+def update_dictionary(C, override):
+    """
+    Mitchell: Change parameters we want for the experiment
+    """
+    for key, value in override.items():
+        C[key] = value
+    return C
+
+
+def main(C, override = {}):
     generational_max_fitness = []
     generational_avg_fitness = []
     overall_best_fitness = -9e300
     overall_best_fitness_gen = 0
     overall_best_brain = None
     
+    C = update_dictionary(C, override)
+
     agent = Agent(C) #Single agent
 
     mission_xml = cs765_utils.load_mission_xml(C['XML'])
@@ -495,7 +507,6 @@ def main(C):
         print(f'Gen:{i}  Evolving population based on fitness scores...')
         this_generation_best_brain = agent.brain_population.generation()
 
-
         gen_avg_reward = sum([r[0] for r in rewards]) / C['population_size']
         gen_max_reward = max([r[0] for r in rewards])
         if gen_max_reward > overall_best_fitness:
@@ -506,10 +517,52 @@ def main(C):
         generational_max_fitness.append(gen_max_reward)
         generational_avg_fitness.append(gen_avg_reward)
         fitness_stats = np.asarray(rewards)
-        np.savetxt(f'logs/fitness_gen{i}.csv', fitness_stats, delimiter=',')
+        np.savetxt(C['save_dir']+f'fitness_gen{i}.csv', fitness_stats, delimiter=',')
         print(f'FINISHED Gen {i}:  Max Reward:{gen_max_reward}  Avg Reward:{gen_avg_reward}')
         print(f'BEST FITNESS TO DATE:{overall_best_fitness} in Gen {overall_best_fitness_gen}')
-    plot_fitness(generational_max_fitness, generational_avg_fitness)    
-    return
+    plot_fitness(generational_max_fitness, generational_avg_fitness)
+    del agent
 
-main(C)
+override = {'save_dir' : "logs/A",
+            'step_reward' : 0,
+            'Dist_multiplier' : 200,
+            'Lava_penalty' : -2000,
+            'Time_penalty' : -1800,
+            'Time_multiplier' : 0}
+main(C, override)
+
+np.random.seed(101)
+override = {'save_dir' : "logs/B",
+            'step_reward' : 0,
+            'Dist_multiplier' : 300,
+            'Lava_penalty' : -2000,
+            'Time_penalty' : -1800,
+            'Time_multiplier' : -100}
+main(C, override)
+
+np.random.seed(101)
+override = {'save_dir' : "logs/C",
+            'step_reward' : 0,
+            'Dist_multiplier' : 200,
+            'Lava_penalty' : -2500,
+            'Time_penalty' : -1800,
+            'Time_multiplier' : -100}
+main(C, override)
+
+np.random.seed(101)
+override = {'save_dir' : "logs/D",
+            'step_reward' : 0,
+            'Dist_multiplier' : 200,
+            'Lava_penalty' : -2000,
+            'Time_penalty' : -1750,
+            'Time_multiplier' : -50}
+main(C, override)
+
+np.random.seed(101)
+override = {'save_dir' : "logs/E",
+            'step_reward' : 0,
+            'Dist_multiplier' : 200,
+            'Lava_penalty' : -2000,
+            'Time_penalty' : -2000,
+            'Time_multiplier' : 0}
+main(C, override)
