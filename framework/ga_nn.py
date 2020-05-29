@@ -225,7 +225,7 @@ class Ecosystem():
         self.max_fitness = -9e50
 
 
-    def generation(self, verbose=False):
+    def generation(self, verbose=False, testing=False):
         """Run a single generation, evaluating, mating, and mutating organisms, returning the best one.
         TIM: Assuming population_size=100, holdout=10, new_blood=10, resulting population will be:
             90 mutated/crossover children of mostly fittest 10 parents  ("holdout" parents) 
@@ -245,23 +245,24 @@ class Ecosystem():
         self.avg_fitness = sum(rewards)/len(rewards)
         self.max_fitness = max(rewards)
 
-        new_population = []
-        for i in range(self.population_size):
-            parent_1_idx = i % self.holdout    #TIM for self.holdout = 10, parent_1_idx cycles between 0..9 i.e top 10 fittest organisms
-            if self.mating:                    #TIM parent_2_idx = min(99, a random number between 0 and inf but weighted towards 0..10). Ie tend to mate with another fit individual
-                parent_2_idx = min(self.population_size - 1, int(np.random.exponential(self.holdout)))
-            else:
-                parent_2_idx = parent_1_idx
-            offspring = self.population[parent_1_idx].mate(self.population[parent_2_idx], 
-                                                           self.mutate, self.crossover,
-                                                           self.crossover_method)
-            new_population.append(offspring)  #TIM: create new pop of 100 mutated children if crossover enabled, or 100 mutated individuals otherwise
-        
-            
-        for i in range(1, self.new_blood+1):  #TIM: self.new_blood = 10
-            new_population[-i] = self.population[0].organism_like()  #TIM: Replace 10 mutated individuals with completely random individuals
-        new_population[-1] = self.population[0]                      #TIM: Then replace one of those 10 with a direct copy of the fittest individual 
-        self.population = new_population  #TIM: so our population now = 90 mutated/crossover children of mostly fittest parents plus 9 new random individuals plus the fittest individual from last time
+        if not testing:
+            new_population = []
+            for i in range(self.population_size):
+                parent_1_idx = i % self.holdout    #TIM for self.holdout = 10, parent_1_idx cycles between 0..9 i.e top 10 fittest organisms
+                if self.mating:                    #TIM parent_2_idx = min(99, a random number between 0 and inf but weighted towards 0..10). Ie tend to mate with another fit individual
+                    parent_2_idx = min(self.population_size - 1, int(np.random.exponential(self.holdout)))
+                else:
+                    parent_2_idx = parent_1_idx
+                offspring = self.population[parent_1_idx].mate(self.population[parent_2_idx],
+                                                               self.mutate, self.crossover,
+                                                               self.crossover_method)
+                new_population.append(offspring)  #TIM: create new pop of 100 mutated children if crossover enabled, or 100 mutated individuals otherwise
+
+
+            for i in range(1, self.new_blood+1):  #TIM: self.new_blood = 10
+                new_population[-i] = self.population[0].organism_like()  #TIM: Replace 10 mutated individuals with completely random individuals
+            new_population[-1] = self.population[0]                      #TIM: Then replace one of those 10 with a direct copy of the fittest individual
+            self.population = new_population  #TIM: so our population now = 90 mutated/crossover children of mostly fittest parents plus 9 new random individuals plus the fittest individual from last time
         return best_organism, best_score
 
 
