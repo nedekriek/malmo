@@ -545,43 +545,43 @@ override = {'save_dir' : "logs/A",
             'Time_multiplier' : 0,
             'num_generations': 2}
 main(C, override)
-#
-# np.random.seed(101)
-# override = {'save_dir' : "logs/B",
-#             'label': 'B',
-#             'step_reward' : 0,
-#             'Dist_multiplier' : 300,
-#             'Lava_penalty' : -2000,
-#             'Time_penalty' : -1800,
-#             'Time_multiplier' : -100}
-# main(C, override)
-#
-# np.random.seed(101)
-# override = {'save_dir' : "logs/C",
-#             'label': 'C',
-#             'step_reward' : 0,
-#             'Dist_multiplier' : 200,
-#             'Lava_penalty' : -2500,
-#             'Time_penalty' : -1800,
-#             'Time_multiplier' : -100}
-# main(C, override)
-#
-# np.random.seed(101)
-# override = {'save_dir' : "logs/D",
-#             'label': 'D',
-#             'step_reward' : 0,
-#             'Dist_multiplier' : 200,
-#             'Lava_penalty' : -2000,
-#             'Time_penalty' : -1750,
-#             'Time_multiplier' : -50}
-# main(C, override)
-#
-# np.random.seed(101)
-# override = {'save_dir' : "logs/E",
-#             'label': 'E',
-#             'step_reward' : 0,
-#             'Dist_multiplier' : 200,
-#             'Lava_penalty' : -2000,
-#             'Time_penalty' : -2000,
-#             'Time_multiplier' : 0}
-# main(C, override)
+
+np.random.seed(101)
+override = {'save_dir' : "logs/B",
+            'label': 'B',
+            'step_reward' : 0,
+            'Dist_multiplier' : 300,
+            'Lava_penalty' : -2000,
+            'Time_penalty' : -1800,
+            'Time_multiplier' : -100}
+main(C, override)
+
+np.random.seed(101)
+override = {'save_dir' : "logs/C",
+            'label': 'C',
+            'step_reward' : 0,
+            'Dist_multiplier' : 200,
+            'Lava_penalty' : -2500,
+            'Time_penalty' : -1800,
+            'Time_multiplier' : -100}
+main(C, override)
+
+np.random.seed(101)
+override = {'save_dir' : "logs/D",
+            'label': 'D',
+            'step_reward' : 0,
+            'Dist_multiplier' : 200,
+            'Lava_penalty' : -2000,
+            'Time_penalty' : -1750,
+            'Time_multiplier' : -50}
+main(C, override)
+
+np.random.seed(101)
+override = {'save_dir' : "logs/E",
+            'label': 'E',
+            'step_reward' : 0,
+            'Dist_multiplier' : 200,
+            'Lava_penalty' : -2000,
+            'Time_penalty' : -2000,
+            'Time_multiplier' : 0}
+main(C, override)
