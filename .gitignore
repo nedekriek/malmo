@@ -1,3 +1,4 @@
 framework/logs/*
+framework/saved_brains/*
 framework/__pycache__/*
 .idea/
