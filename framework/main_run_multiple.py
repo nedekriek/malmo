@@ -34,7 +34,7 @@ import matplotlib.pyplot as plt
 #TIM:
 import skimage.measure
 import copy
-from ga_nn import Organism, Ecosystem
+from ga_nn import Organism, Ecosystem, save_brains, load_brains
 np.random.seed(101)  #TIM Added for reproduceability
 
 
@@ -65,6 +65,7 @@ def get_sensory_info_shape(C):
 C = {}
 C['image_log'] = "image_log/"
 C['save_dir'] = "logs/"
+C['label'] = 'default'  # Henry: Distinct labels specify distinct 'runs'
 C['XML'] = "./scenarios/scenario1.xml"  #Mitchell:  scenario1.xml , scenario2.xml , scenario3.xml in increasing difficulty
 C['h'] = 240                 #minecraft image dims (need to be changed in XML as well as here)
 C['w'] = 320
@@ -465,6 +466,7 @@ def main(C, override = {}):
     overall_best_fitness = -9e300
     overall_best_fitness_gen = 0
     overall_best_brain = None
+    have_saved_brains = False   # False until loop has saved the initial set of brains, for max/avg stats
     
     C = update_dictionary(C, override)
 
@@ -513,6 +515,17 @@ def main(C, override = {}):
             overall_best_fitness = gen_max_reward
             overall_best_fitness_gen = i
             overall_best_brain = this_generation_best_brain
+
+        if have_saved_brains:
+            best_avg_brains = load_brains(path='saved_brains', filename=('best_avg_' + C['label']))
+            best_max_brains = load_brains(path='saved_brains', filename=('best_max_' + C['label']))
+        if not have_saved_brains or (gen_avg_reward > best_avg_brains.avg_fitness):
+            save_brains(agent.brain_population, path='saved_brains', filename=('best_avg_' + C['label']))
+        if not have_saved_brains or (gen_max_reward > best_max_brains.max_fitness):
+            save_brains(agent.brain_population, path='saved_brains', filename=('best_max_' + C['label']))
+        have_saved_brains = True
+
+
         #TODO Write the max & avg fitness out to a file here!
         generational_max_fitness.append(gen_max_reward)
         generational_avg_fitness.append(gen_avg_reward)
@@ -524,45 +537,51 @@ def main(C, override = {}):
     del agent
 
 override = {'save_dir' : "logs/A",
+            'label': 'A',
             'step_reward' : 0,
             'Dist_multiplier' : 200,
             'Lava_penalty' : -2000,
             'Time_penalty' : -1800,
-            'Time_multiplier' : 0}
+            'Time_multiplier' : 0,
+            'num_generations': 2}
 main(C, override)
-
-np.random.seed(101)
-override = {'save_dir' : "logs/B",
-            'step_reward' : 0,
-            'Dist_multiplier' : 300,
-            'Lava_penalty' : -2000,
-            'Time_penalty' : -1800,
-            'Time_multiplier' : -100}
-main(C, override)
-
-np.random.seed(101)
-override = {'save_dir' : "logs/C",
-            'step_reward' : 0,
-            'Dist_multiplier' : 200,
-            'Lava_penalty' : -2500,
-            'Time_penalty' : -1800,
-            'Time_multiplier' : -100}
-main(C, override)
-
-np.random.seed(101)
-override = {'save_dir' : "logs/D",
-            'step_reward' : 0,
-            'Dist_multiplier' : 200,
-            'Lava_penalty' : -2000,
-            'Time_penalty' : -1750,
-            'Time_multiplier' : -50}
-main(C, override)
-
-np.random.seed(101)
-override = {'save_dir' : "logs/E",
-            'step_reward' : 0,
-            'Dist_multiplier' : 200,
-            'Lava_penalty' : -2000,
-            'Time_penalty' : -2000,
-            'Time_multiplier' : 0}
-main(C, override)
+#
+# np.random.seed(101)
+# override = {'save_dir' : "logs/B",
+#             'label': 'B',
+#             'step_reward' : 0,
+#             'Dist_multiplier' : 300,
+#             'Lava_penalty' : -2000,
+#             'Time_penalty' : -1800,
+#             'Time_multiplier' : -100}
+# main(C, override)
+#
+# np.random.seed(101)
+# override = {'save_dir' : "logs/C",
+#             'label': 'C',
+#             'step_reward' : 0,
+#             'Dist_multiplier' : 200,
+#             'Lava_penalty' : -2500,
+#             'Time_penalty' : -1800,
+#             'Time_multiplier' : -100}
+# main(C, override)
+#
+# np.random.seed(101)
+# override = {'save_dir' : "logs/D",
+#             'label': 'D',
+#             'step_reward' : 0,
+#             'Dist_multiplier' : 200,
+#             'Lava_penalty' : -2000,
+#             'Time_penalty' : -1750,
+#             'Time_multiplier' : -50}
+# main(C, override)
+#
+# np.random.seed(101)
+# override = {'save_dir' : "logs/E",
+#             'label': 'E',
+#             'step_reward' : 0,
+#             'Dist_multiplier' : 200,
+#             'Lava_penalty' : -2000,
+#             'Time_penalty' : -2000,
+#             'Time_multiplier' : 0}
+# main(C, override)

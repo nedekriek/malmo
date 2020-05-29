@@ -7,7 +7,9 @@ Created on Sat May 23 15:42:40 2020
 
 import copy
 
+import dill as pickle
 import numpy as np
+#import pickle
 import random
 from matplotlib import pyplot as plt
 
@@ -219,6 +221,9 @@ class Ecosystem():
         self.crossover = crossover 
         self.crossover_method = crossover_method
 
+        self.avg_fitness = -9e50
+        self.max_fitness = -9e50
+
 
     def generation(self, verbose=False):
         """Run a single generation, evaluating, mating, and mutating organisms, returning the best one.
@@ -236,6 +241,10 @@ class Ecosystem():
         self.population = [self.population[x] for x in np.argsort(rewards)[::-1]]  #TIM: Sort population by fitness score descending
         best_organism = self.population[0]
         best_score = max(rewards)
+
+        self.avg_fitness = sum(rewards)/len(rewards)
+        self.max_fitness = max(rewards)
+
         new_population = []
         for i in range(self.population_size):
             parent_1_idx = i % self.holdout    #TIM for self.holdout = 10, parent_1_idx cycles between 0..9 i.e top 10 fittest organisms
@@ -273,4 +282,24 @@ class Ecosystem():
             organism.mutate_single_neuron = mutate_single_neuron
 
         return
-    
+
+    def set_population(self, new_population):
+        if len(new_population) != self.population_size:
+            raise Exception('New population is incorrect size, must be same size as ecosystem')
+        self.population = new_population
+
+def save_brains(ecosystem, path, filename):
+    try:
+        with open(f'{path}/{filename}.pickle', 'wb') as handle:
+            pickle.dump(ecosystem, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    except IOError:
+        print('IOError')
+
+def load_brains(path, filename):
+        with open(f'{path}/{filename}.pickle', 'rb') as handle:
+            brains = pickle.load(handle)
+        return brains
+    # except IOError:
+    #     print(f'Loading {path}/{filename}.pickle failed.')
+    #     return False
+
