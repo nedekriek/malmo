@@ -199,13 +199,18 @@ class Organism():
 
 
 class Ecosystem():
-    def __init__(self, holotype, scoring_function, population_size=100, holdout='sqrt', new_blood=0.1, 
+    def __init__(self, holotype, scoring_function, initial_population=None, population_size=100, holdout='sqrt', new_blood=0.1,
                  mating=True, mutate=True, crossover=True, crossover_method='single_neuron'):
         """ TIM: Added mutate and crossover params so can turn each on/over with rate decided in Organism class
             TIM: Parameterised crossover_method
         """
         self.population_size = population_size
-        self.population = [holotype.organism_like() for _ in range(population_size)]
+
+        if initial_population is not None:      # Henry: Allows us to preset the brains, for incremental learning
+            self.population = initial_population
+        else:
+            self.population = [holotype.organism_like() for _ in range(population_size)]
+
         self.scoring_function = scoring_function
         if holdout == 'sqrt':
             self.holdout = max(1, int(np.sqrt(population_size)))
