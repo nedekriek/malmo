@@ -124,7 +124,7 @@ C['architecture'] = [ dummy_sensory_info_shape[0],
                       dummy_sensory_info_shape[0] // 10, 
                       dummy_sensory_info_shape[0] // 10, 
                       C['num_actions']]       
-C['population_size']=2
+C['population_size']=10
 C['mutate_single_layer']=True
 C['mutate_single_neuron']=True
 C['mutate_strategy_turnon']=6         #number of generations to initially run with all weights mutated before switching to mutate single/layer/neuron settings.
@@ -163,7 +163,7 @@ def rgb2gray(rgb):
 
 class Agent(object):
     newid = itertools.count()
-    def __init__(self, C):
+    def __init__(self, C, brains=None):
         self.count = 0                              #Used to keep track of how many inputs it has taken
         self.host = MalmoPython.AgentHost()
         malmoutils.parse_command_line(self.host)
@@ -175,12 +175,14 @@ class Agent(object):
         self.scoring_function = lambda brain : eval_fitness(brain)  #Will return the current fitness score from this brain     # TODO: Why not just brain.fitness_score ?
         #TIM: Create population of agent brains
         self.brain_population = Ecosystem(self.C['original_brain'], 
-                              self.scoring_function, 
+                              self.scoring_function,
+                              initial_population=brains,
                               population_size=self.C['population_size'], 
                               mating=True, 
                               mutate=self.C['mutate'], 
                               crossover=self.C['crossover'],
-                              crossover_method=self.C['crossover_method'])
+                              crossover_method=self.C['crossover_method'],
+                                          )
         
 
     def connect(self, client_pool):
@@ -460,7 +462,15 @@ def update_dictionary(C, override):
     return C
 
 
-def main(C, override = {}):
+def run_incremental_training(C, override_list):
+    for idx, override in enumerate(override_list):
+        if idx == 0:
+            brains = main(C, override=override)
+        else:
+            brains = main(C, brains=brains, override=override)
+
+
+def main(C, brains=None, override={}):
     generational_max_fitness = []
     generational_avg_fitness = []
     overall_best_fitness = -9e300
@@ -470,7 +480,7 @@ def main(C, override = {}):
     
     C = update_dictionary(C, override)
 
-    agent = Agent(C) #Single agent
+    agent = Agent(C, brains) #Single agent
 
     mission_xml = cs765_utils.load_mission_xml(C['XML'])
     print(mission_xml)
@@ -534,54 +544,81 @@ def main(C, override = {}):
         print(f'FINISHED Gen {i}:  Max Reward:{gen_max_reward}  Avg Reward:{gen_avg_reward}')
         print(f'BEST FITNESS TO DATE:{overall_best_fitness} in Gen {overall_best_fitness_gen}')
     plot_fitness(generational_max_fitness, generational_avg_fitness)
+
+    final_gen_brains = agent.brain_population.population    # Henry: Retrieve final brains for next increment in learning
     del agent
+    return final_gen_brains
 
-override = {'save_dir' : "logs/A",
-            'label': 'A',
-            'step_reward' : 0,
-            'Dist_multiplier' : 200,
-            'Lava_penalty' : -2000,
-            'Time_penalty' : -1800,
-            'Time_multiplier' : 0,
-            'num_generations': 2}
-main(C, override)
 
-np.random.seed(101)
-override = {'save_dir' : "logs/B",
-            'label': 'B',
-            'step_reward' : 0,
-            'Dist_multiplier' : 300,
-            'Lava_penalty' : -2000,
-            'Time_penalty' : -1800,
-            'Time_multiplier' : -100}
-main(C, override)
+overrides = [{'save_dir' : 'logs/A',
+              'label' : 'A',
+              'step_reward': 0,
+              'Dist_multiplier' : 200,
+              'Lava_penalty' : -2500,
+              'Time_penalty' : -1800,
+              'Time_multiplier' : -100,
+              'num_generations': 10
+              },
+             {'save_dir': 'logs/B',
+              'label': 'B',
+              'XML' : "./scenarios/scenario2.xml",
+              'step_reward': 0,
+              'Dist_multiplier': 200,
+              'Lava_penalty': -2500,
+              'Time_penalty': -1800,
+              'Time_multiplier': -100,
+              'num_generations': 10
+              }
+             ]
 
-np.random.seed(101)
-override = {'save_dir' : "logs/C",
-            'label': 'C',
-            'step_reward' : 0,
-            'Dist_multiplier' : 200,
-            'Lava_penalty' : -2500,
-            'Time_penalty' : -1800,
-            'Time_multiplier' : -100}
-main(C, override)
+run_incremental_training(C, overrides)
 
-np.random.seed(101)
-override = {'save_dir' : "logs/D",
-            'label': 'D',
-            'step_reward' : 0,
-            'Dist_multiplier' : 200,
-            'Lava_penalty' : -2000,
-            'Time_penalty' : -1750,
-            'Time_multiplier' : -50}
-main(C, override)
-
-np.random.seed(101)
-override = {'save_dir' : "logs/E",
-            'label': 'E',
-            'step_reward' : 0,
-            'Dist_multiplier' : 200,
-            'Lava_penalty' : -2000,
-            'Time_penalty' : -2000,
-            'Time_multiplier' : 0}
-main(C, override)
+# override = {'save_dir' : "logs/A",
+#             'label': 'A',
+#             'step_reward' : 0,
+#             'Dist_multiplier' : 200,
+#             'Lava_penalty' : -2000,
+#             'Time_penalty' : -1800,
+#             'Time_multiplier' : 0,
+#             'num_generations': 2}
+# main(C, override)
+#
+# np.random.seed(101)
+# override = {'save_dir' : "logs/B",
+#             'label': 'B',
+#             'step_reward' : 0,
+#             'Dist_multiplier' : 300,
+#             'Lava_penalty' : -2000,
+#             'Time_penalty' : -1800,
+#             'Time_multiplier' : -100}
+# main(C, override)
+#
+# np.random.seed(101)
+# override = {'save_dir' : "logs/C",
+#             'label': 'C',
+#             'step_reward' : 0,
+#             'Dist_multiplier' : 200,
+#             'Lava_penalty' : -2500,
+#             'Time_penalty' : -1800,
+#             'Time_multiplier' : -100}
+# main(C, override)
+#
+# np.random.seed(101)
+# override = {'save_dir' : "logs/D",
+#             'label': 'D',
+#             'step_reward' : 0,
+#             'Dist_multiplier' : 200,
+#             'Lava_penalty' : -2000,
+#             'Time_penalty' : -1750,
+#             'Time_multiplier' : -50}
+# main(C, override)
+#
+# np.random.seed(101)
+# override = {'save_dir' : "logs/E",
+#             'label': 'E',
+#             'step_reward' : 0,
+#             'Dist_multiplier' : 200,
+#             'Lava_penalty' : -2000,
+#             'Time_penalty' : -2000,
+#             'Time_multiplier' : 0}
+# main(C, override)
