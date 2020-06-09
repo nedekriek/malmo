@@ -1,4 +1,14 @@
-# The basic protocol:
+# Notes on our implementation
+Setting up Malmo can be a bit of a pain, I can add rough instructions on how to do this later.
+
+We have a hardcoded dictionary in our "main_run_multiple" and "main_with_ga_nn" files that you can change. The later runs one iteration of the agents using the given parameters, and the former can be used to set up incremental tests or multiple tests at once.
+
+To run this you will need to run a Malmo Minecraft client, and then run the "main_run_multiple" or "main_with_ga_nn" files.
+
+The tests are sped up to 5x speed with a max time of 30 seconds (6 seconds after speed up). Some parameters can be changed in the scenarios.xml file. 
+
+
+# Notes for us: The basic protocol:
 
 If you are working on a new feature make a new branch. When that branch is done and bug free merge it into the master. Git will let you know if your changes conflict with someone elses work git will let us know and we can resolve it. When you make a commit please always include a short message of the latest updates/changes to the branch. 
 
