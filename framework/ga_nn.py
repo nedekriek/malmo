@@ -3,6 +3,10 @@
 Created on Sat May 23 15:42:40 2020
 
 @author: timha
+
+Originally Based on code from: https://github.com/ConorLazarou/GeneticAlgorithms/tree/master/connga
+
+
 """
 
 import copy
